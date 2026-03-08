@@ -56,9 +56,18 @@ export const deleteFlight = async (id: number) => {
   await api.delete(`/flights/${id}`);
 };
 
+export const deleteAllFlights = async (confirmation: string) => {
+  const res = await api.post("/flights/delete-all", { confirmation });
+  return res.data;
+};
+
 // Stats
-export const fetchStats = async () => {
-  const res = await api.get("/stats");
+export const fetchStats = async (year?: number, limit?: number, sortBy?: string) => {
+  const params: Record<string, string | number> = {};
+  if (year) params.year = year;
+  if (limit) params.limit = limit;
+  if (sortBy) params.sort_by = sortBy;
+  const res = await api.get("/stats", { params });
   return res.data;
 };
 

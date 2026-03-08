@@ -12,9 +12,10 @@ class Flight(Base):
     departure_iata = Column(String(3), nullable=False, index=True)
     arrival_iata = Column(String(3), nullable=False, index=True)
     date = Column(Date, nullable=False, index=True)
+    departure_time = Column(String(5), nullable=True)  # HH:MM format
 
     # Flight details
-    airline_iata = Column(String(2), nullable=True)
+    airline_iata = Column(String(10), nullable=True)
     flight_number = Column(String(10), nullable=True)
     aircraft_type = Column(String(50), nullable=True)
     aircraft_registration = Column(String(20), nullable=True)
@@ -30,4 +31,5 @@ class Flight(Base):
 
     # Extra
     trip_reason = Column(String(20), nullable=True)  # leisure, business
+    trip = Column(String(100), nullable=True)
     notes = Column(Text, nullable=True)

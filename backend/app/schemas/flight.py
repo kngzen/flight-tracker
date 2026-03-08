@@ -7,6 +7,7 @@ class FlightBase(BaseModel):
     departure_iata: str
     arrival_iata: str
     date: date
+    departure_time: Optional[str] = None
     airline_iata: Optional[str] = None
     flight_number: Optional[str] = None
     aircraft_type: Optional[str] = None
@@ -16,6 +17,7 @@ class FlightBase(BaseModel):
     seat_position: Optional[str] = None
     duration_minutes: Optional[int] = None
     trip_reason: Optional[str] = None
+    trip: Optional[str] = None
     notes: Optional[str] = None
 
     @field_validator("departure_iata", "arrival_iata")

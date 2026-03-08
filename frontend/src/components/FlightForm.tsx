@@ -1,7 +1,10 @@
+import { useState, useEffect, useRef } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { FlightCreate } from "../types";
 import AirportSelect from "./AirportSelect";
 import AirlineSelect from "./AirlineSelect";
+import { api } from "../lib/api";
+import { format } from "date-fns";
 
 interface Props {
   defaultValues?: Partial<FlightCreate>;
@@ -28,9 +31,86 @@ const TRIP_REASONS = [
   { value: "business", label: "Business" },
 ];
 
+function AircraftTypeInput({ value, onChange }: { value?: string; onChange: (v: string) => void }) {
+  const [query, setQuery] = useState(value || "");
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setQuery(value || "");
+  }, [value]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const fetchSuggestions = (q: string) => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    if (q.length < 2) {
+      setSuggestions([]);
+      return;
+    }
+    timeoutRef.current = setTimeout(async () => {
+      try {
+        const res = await api.get("/flights/aircraft-types/suggest", { params: { q } });
+        setSuggestions(res.data);
+        setShowSuggestions(res.data.length > 0);
+      } catch {
+        setSuggestions([]);
+      }
+    }, 200);
+  };
+
+  return (
+    <div ref={wrapperRef} className="relative">
+      <input
+        type="text"
+        className="input"
+        placeholder="e.g. A320, Boeing 737"
+        value={query}
+        onChange={(e) => {
+          setQuery(e.target.value);
+          onChange(e.target.value);
+          fetchSuggestions(e.target.value);
+        }}
+        onFocus={() => {
+          if (suggestions.length > 0) setShowSuggestions(true);
+        }}
+      />
+      {showSuggestions && suggestions.length > 0 && (
+        <div className="absolute z-50 mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+          {suggestions.map((s) => (
+            <button
+              key={s}
+              type="button"
+              className="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-700 transition-colors"
+              onClick={() => {
+                setQuery(s);
+                onChange(s);
+                setShowSuggestions(false);
+              }}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function FlightForm({ defaultValues, onSubmit, isLoading, submitLabel = "Save Flight" }: Props) {
+  const today = format(new Date(), "yyyy-MM-dd");
   const { register, handleSubmit, control, formState: { errors } } = useForm<FlightCreate>({
-    defaultValues: defaultValues || {},
+    defaultValues: { date: today, ...defaultValues },
   });
 
   return (
@@ -88,6 +168,14 @@ export default function FlightForm({ defaultValues, onSubmit, isLoading, submitL
               <p className="text-red-400 text-xs mt-1">{errors.date.message}</p>
             )}
           </div>
+          <div>
+            <label className="label">Departure Time</label>
+            <input
+              type="time"
+              className="input"
+              {...register("departure_time")}
+            />
+          </div>
         </div>
       </div>
 
@@ -122,11 +210,12 @@ export default function FlightForm({ defaultValues, onSubmit, isLoading, submitL
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="label">Aircraft Type</label>
-            <input
-              type="text"
-              className="input"
-              placeholder="e.g. Boeing 737, A320"
-              {...register("aircraft_type")}
+            <Controller
+              name="aircraft_type"
+              control={control}
+              render={({ field }) => (
+                <AircraftTypeInput value={field.value} onChange={field.onChange} />
+              )}
             />
           </div>
           <div>
@@ -187,14 +276,25 @@ export default function FlightForm({ defaultValues, onSubmit, isLoading, submitL
       {/* Extra */}
       <div className="card space-y-4">
         <h3 className="font-semibold text-slate-200">Extra</h3>
-        <div>
-          <label className="label">Trip Reason</label>
-          <select className="input" {...register("trip_reason")}>
-            <option value="">— Select —</option>
-            {TRIP_REASONS.map((r) => (
-              <option key={r.value} value={r.value}>{r.label}</option>
-            ))}
-          </select>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="label">Trip Reason</label>
+            <select className="input" {...register("trip_reason")}>
+              <option value="">— Select —</option>
+              {TRIP_REASONS.map((r) => (
+                <option key={r.value} value={r.value}>{r.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="label">Trip</label>
+            <input
+              type="text"
+              className="input"
+              placeholder="e.g. Summer 2024 Europe"
+              {...register("trip")}
+            />
+          </div>
         </div>
         <div>
           <label className="label">Notes</label>

@@ -1,3 +1,5 @@
+const KM_TO_MILES = 0.621371;
+
 export function formatDuration(minutes: number | null): string {
   if (!minutes) return "—";
   const h = Math.floor(minutes / 60);
@@ -7,7 +9,18 @@ export function formatDuration(minutes: number | null): string {
 
 export function formatDistance(km: number | null): string {
   if (!km) return "—";
-  return `${km.toLocaleString()} km`;
+  const miles = Math.round(km * KM_TO_MILES);
+  return `${miles.toLocaleString()} mi`;
+}
+
+export function formatDistanceFull(km: number | null): string {
+  if (!km) return "—";
+  const miles = Math.round(km * KM_TO_MILES);
+  return `${miles.toLocaleString()} mi (${Math.round(km).toLocaleString()} km)`;
+}
+
+export function kmToMiles(km: number): number {
+  return Math.round(km * KM_TO_MILES);
 }
 
 export function formatNumber(n: number): string {

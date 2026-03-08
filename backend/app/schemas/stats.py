@@ -15,6 +15,7 @@ class TopRoute(BaseModel):
     departure_name: Optional[str]
     arrival_name: Optional[str]
     count: int
+    distance_km: float = 0
 
 
 class TopAirport(BaseModel):
@@ -22,13 +23,28 @@ class TopAirport(BaseModel):
     name: Optional[str]
     city: Optional[str]
     country: Optional[str]
+    country_code: Optional[str] = None
     count: int
+    distance_km: float = 0
 
 
 class TopAirline(BaseModel):
     iata: Optional[str]
     name: Optional[str]
     count: int
+    distance_km: float = 0
+
+
+class TopAircraftType(BaseModel):
+    aircraft_type: str
+    count: int
+    distance_km: float = 0
+
+
+class TopRegistration(BaseModel):
+    registration: str
+    count: int
+    distance_km: float = 0
 
 
 class MapRoute(BaseModel):
@@ -58,4 +74,6 @@ class StatsOut(BaseModel):
     top_routes: list[TopRoute]
     top_airports: list[TopAirport]
     top_airlines: list[TopAirline]
+    top_aircraft_types: list[TopAircraftType]
+    top_registrations: list[TopRegistration]
     map_routes: list[MapRoute]

@@ -1,13 +1,12 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { Plus, Pencil, Trash2, ChevronDown, ChevronUp, Plane } from "lucide-react";
-import { fetchFlights, deleteFlight } from "../lib/api";
+import { Plus, Pencil, Trash2, ChevronDown, ChevronUp, Plane, AlertTriangle } from "lucide-react";
+import { fetchFlights, deleteFlight, deleteAllFlights } from "../lib/api";
 import { Flight } from "../types";
 import { format } from "date-fns";
 import { formatDuration, formatDistance, seatClassLabel, seatClassBadge } from "../lib/utils";
 import toast from "react-hot-toast";
-import clsx from "clsx";
 
 type SortKey = "date" | "departure_iata" | "arrival_iata" | "distance_km";
 
@@ -17,6 +16,8 @@ export default function FlightLogPage() {
   const [sortKey, setSortKey] = useState<SortKey>("date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [showDeleteAll, setShowDeleteAll] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState("");
 
   const { data: flights = [], isLoading } = useQuery<Flight[]>({
     queryKey: ["flights", year],
@@ -32,6 +33,18 @@ export default function FlightLogPage() {
       setDeleteId(null);
     },
     onError: () => toast.error("Failed to delete flight"),
+  });
+
+  const deleteAllMutation = useMutation({
+    mutationFn: deleteAllFlights,
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["flights"] });
+      queryClient.invalidateQueries({ queryKey: ["stats"] });
+      toast.success(`Deleted ${data.deleted} flights`);
+      setShowDeleteAll(false);
+      setDeleteConfirm("");
+    },
+    onError: () => toast.error("Failed to delete flights"),
   });
 
   const handleSort = (key: SortKey) => {
@@ -73,6 +86,15 @@ export default function FlightLogPage() {
             <option value="">All years</option>
             {years.map((y) => <option key={y} value={y}>{y}</option>)}
           </select>
+          {flights.length > 0 && (
+            <button
+              onClick={() => setShowDeleteAll(true)}
+              className="btn-danger flex items-center gap-2 text-sm"
+            >
+              <Trash2 className="w-4 h-4" />
+              Delete All
+            </button>
+          )}
           <Link to="/flights/new" className="btn-primary flex items-center gap-2">
             <Plus className="w-4 h-4" />
             Add Flight
@@ -108,9 +130,12 @@ export default function FlightLogPage() {
                       </span>
                     </th>
                   ))}
+                  <th className="text-left px-4 py-3">Flight</th>
                   <th className="text-left px-4 py-3">Airline</th>
                   <th className="text-left px-4 py-3">Aircraft</th>
+                  <th className="text-left px-4 py-3">Reg</th>
                   <th className="text-left px-4 py-3">Class</th>
+                  <th className="text-left px-4 py-3">Seat</th>
                   <th
                     className="text-right px-4 py-3 cursor-pointer hover:text-slate-200 select-none"
                     onClick={() => handleSort("distance_km")}
@@ -120,6 +145,8 @@ export default function FlightLogPage() {
                     </span>
                   </th>
                   <th className="text-right px-4 py-3">Duration</th>
+                  <th className="text-left px-4 py-3">Reason</th>
+                  <th className="text-left px-4 py-3">Trip</th>
                   <th className="px-4 py-3"></th>
                 </tr>
               </thead>
@@ -127,7 +154,8 @@ export default function FlightLogPage() {
                 {sorted.map((f) => (
                   <tr key={f.id} className="hover:bg-slate-800/30 transition-colors">
                     <td className="px-4 py-3 text-slate-300 whitespace-nowrap">
-                      {format(new Date(f.date), "d MMM yyyy")}
+                      <div>{format(new Date(f.date), "d MMM yyyy")}</div>
+                      {f.departure_time && <div className="text-xs text-slate-500">{f.departure_time}</div>}
                     </td>
                     <td className="px-4 py-3">
                       <div className="font-medium text-white">{f.departure_iata}</div>
@@ -137,11 +165,17 @@ export default function FlightLogPage() {
                       <div className="font-medium text-white">{f.arrival_iata}</div>
                       <div className="text-xs text-slate-500">{f.arrival_airport?.city}</div>
                     </td>
+                    <td className="px-4 py-3 text-slate-300 font-mono text-xs">
+                      {f.flight_number || "—"}
+                    </td>
                     <td className="px-4 py-3 text-slate-300">
                       {f.airline?.name || f.airline_iata || "—"}
                     </td>
                     <td className="px-4 py-3 text-slate-400">
                       {f.aircraft_type || "—"}
+                    </td>
+                    <td className="px-4 py-3 text-slate-400 font-mono text-xs">
+                      {f.aircraft_registration || "—"}
                     </td>
                     <td className="px-4 py-3">
                       {f.seat_class ? (
@@ -152,11 +186,27 @@ export default function FlightLogPage() {
                         <span className="text-slate-500">—</span>
                       )}
                     </td>
+                    <td className="px-4 py-3 text-slate-400 text-xs">
+                      {f.seat_number ? (
+                        <span>
+                          {f.seat_number}
+                          {f.seat_position ? ` (${f.seat_position})` : ""}
+                        </span>
+                      ) : (
+                        <span className="text-slate-500">—</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-right text-slate-300 whitespace-nowrap">
                       {formatDistance(f.distance_km)}
                     </td>
                     <td className="px-4 py-3 text-right text-slate-400 whitespace-nowrap">
                       {formatDuration(f.duration_minutes)}
+                    </td>
+                    <td className="px-4 py-3 text-slate-400 text-xs capitalize">
+                      {f.trip_reason || "—"}
+                    </td>
+                    <td className="px-4 py-3 text-slate-400 text-xs">
+                      {f.trip || "—"}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
@@ -181,6 +231,42 @@ export default function FlightLogPage() {
           </div>
         )}
       </div>
+
+      {/* Delete all confirmation */}
+      {showDeleteAll && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="card max-w-sm w-full mx-4 space-y-4">
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="w-6 h-6 text-red-400 flex-shrink-0" />
+              <h3 className="font-semibold text-white">Delete All Flights?</h3>
+            </div>
+            <p className="text-slate-400 text-sm">
+              This will permanently delete all {flights.length} flights. This action cannot be undone.
+            </p>
+            <div>
+              <label className="label text-xs">Type <span className="text-red-400 font-mono">delete</span> to confirm</label>
+              <input
+                type="text"
+                className="input"
+                placeholder="delete"
+                value={deleteConfirm}
+                onChange={(e) => setDeleteConfirm(e.target.value)}
+                autoFocus
+              />
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button className="btn-secondary" onClick={() => { setShowDeleteAll(false); setDeleteConfirm(""); }}>Cancel</button>
+              <button
+                className="btn-danger"
+                onClick={() => deleteAllMutation.mutate(deleteConfirm)}
+                disabled={deleteConfirm !== "delete" || deleteAllMutation.isPending}
+              >
+                {deleteAllMutation.isPending ? "Deleting..." : "Delete All Flights"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete confirmation */}
       {deleteId && (

@@ -23,6 +23,7 @@ export interface Flight {
   departure_iata: string;
   arrival_iata: string;
   date: string;
+  departure_time: string | null;
   airline_iata: string | null;
   flight_number: string | null;
   aircraft_type: string | null;
@@ -33,6 +34,7 @@ export interface Flight {
   duration_minutes: number | null;
   distance_km: number | null;
   trip_reason: string | null;
+  trip: string | null;
   notes: string | null;
   departure_airport: Airport | null;
   arrival_airport: Airport | null;
@@ -43,6 +45,7 @@ export interface FlightCreate {
   departure_iata: string;
   arrival_iata: string;
   date: string;
+  departure_time?: string;
   airline_iata?: string;
   flight_number?: string;
   aircraft_type?: string;
@@ -52,6 +55,7 @@ export interface FlightCreate {
   seat_position?: string;
   duration_minutes?: number;
   trip_reason?: string;
+  trip?: string;
   notes?: string;
 }
 
@@ -68,6 +72,7 @@ export interface TopRoute {
   departure_name: string | null;
   arrival_name: string | null;
   count: number;
+  distance_km: number;
 }
 
 export interface TopAirport {
@@ -75,13 +80,28 @@ export interface TopAirport {
   name: string | null;
   city: string | null;
   country: string | null;
+  country_code: string | null;
   count: number;
+  distance_km: number;
 }
 
 export interface TopAirline {
   iata: string | null;
   name: string | null;
   count: number;
+  distance_km: number;
+}
+
+export interface TopAircraftType {
+  aircraft_type: string;
+  count: number;
+  distance_km: number;
+}
+
+export interface TopRegistration {
+  registration: string;
+  count: number;
+  distance_km: number;
 }
 
 export interface MapRoute {
@@ -111,5 +131,7 @@ export interface Stats {
   top_routes: TopRoute[];
   top_airports: TopAirport[];
   top_airlines: TopAirline[];
+  top_aircraft_types: TopAircraftType[];
+  top_registrations: TopRegistration[];
   map_routes: MapRoute[];
 }

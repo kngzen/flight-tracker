@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from typing import Optional
 
@@ -11,6 +12,10 @@ from app.utils.auth import get_current_user
 from app.utils.geo import haversine_km
 
 router = APIRouter(prefix="/api/flights", tags=["flights"])
+
+
+class DeleteAllConfirm(BaseModel):
+    confirmation: str
 
 
 def enrich_flight(flight: Flight, db: Session) -> dict:
@@ -44,7 +49,7 @@ def compute_distance(departure_iata: str, arrival_iata: str, db: Session) -> Opt
 @router.get("", response_model=list[FlightOut])
 def list_flights(
     skip: int = 0,
-    limit: int = Query(100, le=1000),
+    limit: int = Query(10000, le=10000),
     year: Optional[int] = None,
     db: Session = Depends(get_db),
     _: str = Depends(get_current_user),
@@ -55,6 +60,20 @@ def list_flights(
         query = query.filter(extract("year", Flight.date) == year)
     flights = query.order_by(Flight.date.desc()).offset(skip).limit(limit).all()
     return [enrich_flight(f, db) for f in flights]
+
+
+@router.post("/delete-all", status_code=200)
+def delete_all_flights(
+    body: DeleteAllConfirm,
+    db: Session = Depends(get_db),
+    _: str = Depends(get_current_user),
+):
+    """Delete all flights. Requires confirmation field to be exactly 'delete'."""
+    if body.confirmation != "delete":
+        raise HTTPException(status_code=400, detail="Type 'delete' to confirm")
+    count = db.query(Flight).delete()
+    db.commit()
+    return {"deleted": count}
 
 
 @router.post("", response_model=FlightOut, status_code=201)
@@ -105,6 +124,24 @@ def update_flight(
     db.commit()
     db.refresh(flight)
     return enrich_flight(flight, db)
+
+
+@router.get("/aircraft-types/suggest")
+def suggest_aircraft_types(
+    q: str = Query("", min_length=1),
+    db: Session = Depends(get_db),
+    _: str = Depends(get_current_user),
+):
+    """Return distinct aircraft types matching the query."""
+    types = (
+        db.query(Flight.aircraft_type)
+        .filter(Flight.aircraft_type.isnot(None))
+        .filter(Flight.aircraft_type.ilike(f"%{q}%"))
+        .distinct()
+        .limit(20)
+        .all()
+    )
+    return [t[0] for t in types if t[0]]
 
 
 @router.delete("/{flight_id}", status_code=204)
