@@ -21,13 +21,17 @@ const LIMIT_OPTIONS = [
   { value: 1000, label: "All" },
 ];
 
-function formatDurationFull(minutes: number): string {
+function formatDurationPrimary(minutes: number): string {
+  return `${formatNumber(Math.round(minutes / 60))}h`;
+}
+
+function formatDurationSub(minutes: number): string | undefined {
   const hours = Math.round(minutes / 60);
-  const parts = [`${formatNumber(hours)}h`];
+  const parts: string[] = [];
   if (hours >= 24) parts.push(`${(hours / 24).toFixed(1)} days`);
   if (hours >= 24 * 30) parts.push(`${(hours / (24 * 30)).toFixed(1)} months`);
   if (hours >= 24 * 365) parts.push(`${(hours / (24 * 365)).toFixed(2)} years`);
-  return parts.join(" / ");
+  return parts.length > 0 ? parts.join(" / ") : undefined;
 }
 
 function formatMiles(km: number): string {
@@ -88,12 +92,25 @@ export default function StatsPage() {
   }));
 
   const byClassData = Object.entries(stats.by_class)
-    .filter(([, v]) => v > 0)
-    .map(([k, v]) => ({ name: seatClassLabel(k), value: v }));
+    .filter(([, v]) => v.count > 0)
+    .map(([k, v]) => ({
+      name: seatClassLabel(k),
+      value: isMileageMode ? Math.round(v.distance_km * KM_TO_MILES) : v.count,
+    }));
 
   const byReasonData = Object.entries(stats.by_reason)
-    .filter(([, v]) => v > 0)
-    .map(([k, v]) => ({ name: k === "leisure" ? "Leisure" : k === "business" ? "Business" : k, value: v }));
+    .filter(([, v]) => v.count > 0)
+    .map(([k, v]) => ({
+      name: k === "leisure" ? "Leisure" : k === "business" ? "Business" : k,
+      value: isMileageMode ? Math.round(v.distance_km * KM_TO_MILES) : v.count,
+    }));
+
+  const byAllianceData = stats.by_alliance
+    .filter((a) => a.count > 0)
+    .map((a) => ({
+      name: a.alliance,
+      value: isMileageMode ? Math.round(a.distance_km * KM_TO_MILES) : a.count,
+    }));
 
   const tooltipStyle = {
     contentStyle: { backgroundColor: "#0f172a", border: "1px solid #334155", borderRadius: 8 },
@@ -120,7 +137,8 @@ export default function StatsPage() {
         />
         <StatCard
           label="Flight Time"
-          value={formatDurationFull(stats.total_duration_minutes)}
+          value={formatDurationPrimary(stats.total_duration_minutes)}
+          sub={formatDurationSub(stats.total_duration_minutes)}
           icon={Clock}
           color="amber"
         />
@@ -212,31 +230,54 @@ export default function StatsPage() {
       </div>
 
       {/* Pie charts */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {byClassData.length > 0 && (
           <div className="card">
-            <h2 className="font-semibold text-slate-200 mb-4">By Cabin Class</h2>
-            <ResponsiveContainer width="100%" height={200}>
+            <h2 className="font-semibold text-slate-200 mb-4">By Cabin Class {isMileageMode && <span className="text-xs text-slate-500 font-normal">(miles)</span>}</h2>
+            <ResponsiveContainer width="100%" height={260}>
               <PieChart>
-                <Pie data={byClassData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} label>
+                <Pie data={byClassData} dataKey="value" nameKey="name" cx="50%" cy="45%" outerRadius={75}
+                  label={({ name, value }) => isMileageMode ? `${formatNumber(value)}` : `${value}`}
+                  labelLine={{ stroke: "#475569" }}
+                >
                   {byClassData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                 </Pie>
                 <Legend wrapperStyle={{ color: "#94a3b8", fontSize: 12 }} />
-                <Tooltip {...tooltipStyle} />
+                <Tooltip {...tooltipStyle} formatter={(v: number) => [isMileageMode ? `${formatNumber(v)} mi` : v, ""]} />
               </PieChart>
             </ResponsiveContainer>
           </div>
         )}
         {byReasonData.length > 0 && (
           <div className="card">
-            <h2 className="font-semibold text-slate-200 mb-4">By Trip Reason</h2>
-            <ResponsiveContainer width="100%" height={200}>
+            <h2 className="font-semibold text-slate-200 mb-4">By Trip Reason {isMileageMode && <span className="text-xs text-slate-500 font-normal">(miles)</span>}</h2>
+            <ResponsiveContainer width="100%" height={260}>
               <PieChart>
-                <Pie data={byReasonData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} label>
+                <Pie data={byReasonData} dataKey="value" nameKey="name" cx="50%" cy="45%" outerRadius={75}
+                  label={({ name, value }) => isMileageMode ? `${formatNumber(value)}` : `${value}`}
+                  labelLine={{ stroke: "#475569" }}
+                >
                   {byReasonData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                 </Pie>
                 <Legend wrapperStyle={{ color: "#94a3b8", fontSize: 12 }} />
-                <Tooltip {...tooltipStyle} />
+                <Tooltip {...tooltipStyle} formatter={(v: number) => [isMileageMode ? `${formatNumber(v)} mi` : v, ""]} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+        {byAllianceData.length > 0 && (
+          <div className="card">
+            <h2 className="font-semibold text-slate-200 mb-4">By Alliance {isMileageMode && <span className="text-xs text-slate-500 font-normal">(miles)</span>}</h2>
+            <ResponsiveContainer width="100%" height={260}>
+              <PieChart>
+                <Pie data={byAllianceData} dataKey="value" nameKey="name" cx="50%" cy="45%" outerRadius={75}
+                  label={({ name, value }) => isMileageMode ? `${formatNumber(value)}` : `${value}`}
+                  labelLine={{ stroke: "#475569" }}
+                >
+                  {byAllianceData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+                </Pie>
+                <Legend wrapperStyle={{ color: "#94a3b8", fontSize: 12 }} />
+                <Tooltip {...tooltipStyle} formatter={(v: number) => [isMileageMode ? `${formatNumber(v)} mi` : v, ""]} />
               </PieChart>
             </ResponsiveContainer>
           </div>

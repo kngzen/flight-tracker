@@ -12,6 +12,7 @@ from app.models.airline import Airline
 from app.schemas.stats import StatsOut
 from app.utils.auth import get_current_user
 from app.utils.country_codes import get_country_code
+from app.utils.alliances import get_alliance
 
 router = APIRouter(prefix="/api/stats", tags=["stats"])
 
@@ -37,7 +38,7 @@ def get_stats(
             total_duration_minutes=0, unique_airports=0, unique_countries=0,
             unique_airlines=0, unique_aircraft_types=0, longest_flight_km=None,
             longest_flight_route=None, by_year=[], by_class={}, by_reason={},
-            top_routes=[], top_airports=[], top_airlines=[],
+            by_alliance=[], top_routes=[], top_airports=[], top_airlines=[],
             top_aircraft_types=[], top_registrations=[], map_routes=[],
         )
 
@@ -74,18 +75,34 @@ def get_stats(
         by_year_map[y]["duration_minutes"] += f.duration_minutes or 0
     by_year = [{"year": y, **v} for y, v in sorted(by_year_map.items())]
 
-    # By class
-    by_class: dict = defaultdict(int)
-    for f in flights:
-        by_class[f.seat_class or "unknown"] += 1
-
-    # By reason
-    by_reason: dict = defaultdict(int)
-    for f in flights:
-        by_reason[f.trip_reason or "unknown"] += 1
-
     # Sort key for rankings
     rank_key = "distance_km" if sort_by == "distance" else "count"
+
+    # By class (count + distance)
+    by_class: dict = defaultdict(lambda: {"count": 0, "distance_km": 0.0})
+    for f in flights:
+        key = f.seat_class or "unknown"
+        by_class[key]["count"] += 1
+        by_class[key]["distance_km"] += f.distance_km or 0
+
+    # By reason (count + distance)
+    by_reason: dict = defaultdict(lambda: {"count": 0, "distance_km": 0.0})
+    for f in flights:
+        key = f.trip_reason or "unknown"
+        by_reason[key]["count"] += 1
+        by_reason[key]["distance_km"] += f.distance_km or 0
+
+    # By alliance
+    alliance_data: dict = defaultdict(lambda: {"count": 0, "distance_km": 0.0})
+    for f in flights:
+        alliance = get_alliance(f.airline_iata)
+        if alliance:
+            alliance_data[alliance]["count"] += 1
+            alliance_data[alliance]["distance_km"] += f.distance_km or 0
+    by_alliance = [
+        {"alliance": k, "count": v["count"], "distance_km": round(v["distance_km"], 1)}
+        for k, v in sorted(alliance_data.items(), key=lambda x: x[1][rank_key], reverse=True)
+    ]
 
     # Top routes (track both count and distance)
     route_data: dict = defaultdict(lambda: {"count": 0, "distance_km": 0.0})
@@ -195,8 +212,9 @@ def get_stats(
         longest_flight_km=round(longest.distance_km, 1) if longest and longest.distance_km else None,
         longest_flight_route=longest_route,
         by_year=by_year,
-        by_class=dict(by_class),
-        by_reason=dict(by_reason),
+        by_class={k: {"count": v["count"], "distance_km": round(v["distance_km"], 1)} for k, v in by_class.items()},
+        by_reason={k: {"count": v["count"], "distance_km": round(v["distance_km"], 1)} for k, v in by_reason.items()},
+        by_alliance=by_alliance,
         top_routes=top_routes,
         top_airports=top_airports,
         top_airlines=top_airlines,

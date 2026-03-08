@@ -114,6 +114,17 @@ export interface MapRoute {
   count: number;
 }
 
+export interface ClassStat {
+  count: number;
+  distance_km: number;
+}
+
+export interface AllianceStat {
+  alliance: string;
+  count: number;
+  distance_km: number;
+}
+
 export interface Stats {
   total_flights: number;
   total_distance_km: number;
@@ -126,8 +137,9 @@ export interface Stats {
   longest_flight_km: number | null;
   longest_flight_route: string | null;
   by_year: YearStat[];
-  by_class: Record<string, number>;
-  by_reason: Record<string, number>;
+  by_class: Record<string, ClassStat>;
+  by_reason: Record<string, ClassStat>;
+  by_alliance: AllianceStat[];
   top_routes: TopRoute[];
   top_airports: TopAirport[];
   top_airlines: TopAirline[];

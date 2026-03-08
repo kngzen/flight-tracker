@@ -1,8 +1,13 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { MapContainer, TileLayer, CircleMarker, Popup, Polyline } from "react-leaflet";
+import { MapContainer, TileLayer, CircleMarker, Popup, Polyline, Tooltip as LTooltip } from "react-leaflet";
 import { fetchStats } from "../lib/api";
 import { Stats } from "../types";
+import { Sun, Moon } from "lucide-react";
+
+const DARK_TILES = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png";
+const LIGHT_TILES = "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png";
+const ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>';
 
 // Calculate intermediate points for a great-circle arc
 // Split segments that cross the antimeridian to avoid horizontal lines
@@ -14,13 +19,13 @@ function greatCirclePoints(
   const toRad = (d: number) => (d * Math.PI) / 180;
   const toDeg = (r: number) => (r * 180) / Math.PI;
 
-  const φ1 = toRad(lat1), λ1 = toRad(lon1);
-  const φ2 = toRad(lat2), λ2 = toRad(lon2);
+  const p1 = toRad(lat1), l1 = toRad(lon1);
+  const p2 = toRad(lat2), l2 = toRad(lon2);
 
   const d = 2 * Math.asin(
     Math.sqrt(
-      Math.sin((φ2 - φ1) / 2) ** 2 +
-      Math.cos(φ1) * Math.cos(φ2) * Math.sin((λ2 - λ1) / 2) ** 2
+      Math.sin((p2 - p1) / 2) ** 2 +
+      Math.cos(p1) * Math.cos(p2) * Math.sin((l2 - l1) / 2) ** 2
     )
   );
 
@@ -31,9 +36,9 @@ function greatCirclePoints(
     const f = i / steps;
     const A = Math.sin((1 - f) * d) / Math.sin(d);
     const B = Math.sin(f * d) / Math.sin(d);
-    const x = A * Math.cos(φ1) * Math.cos(λ1) + B * Math.cos(φ2) * Math.cos(λ2);
-    const y = A * Math.cos(φ1) * Math.sin(λ1) + B * Math.cos(φ2) * Math.sin(λ2);
-    const z = A * Math.sin(φ1) + B * Math.sin(φ2);
+    const x = A * Math.cos(p1) * Math.cos(l1) + B * Math.cos(p2) * Math.cos(l2);
+    const y = A * Math.cos(p1) * Math.sin(l1) + B * Math.cos(p2) * Math.sin(l2);
+    const z = A * Math.sin(p1) + B * Math.sin(p2);
     rawPoints.push([toDeg(Math.atan2(z, Math.sqrt(x ** 2 + y ** 2))), toDeg(Math.atan2(y, x))]);
   }
 
@@ -54,8 +59,14 @@ function greatCirclePoints(
   return segments;
 }
 
+function TileSwapper({ url }: { url: string }) {
+  return <TileLayer key={url} url={url} attribution={ATTRIBUTION} />;
+}
+
 export default function MapPage() {
   const [year, setYear] = useState<number | undefined>();
+  const [view, setView] = useState<"routes" | "bubbles">("routes");
+  const [darkMode, setDarkMode] = useState(true);
 
   const { data: stats, isLoading } = useQuery<Stats>({
     queryKey: ["stats", year],
@@ -88,6 +99,13 @@ export default function MapPage() {
     });
   });
 
+  const maxAirportCount = Math.max(...Array.from(airportMap.values()).map((a) => a.count), 1);
+
+  const lineColor = darkMode ? "#3b82f6" : "#2563eb";
+  const dotColor = darkMode ? "#3b82f6" : "#2563eb";
+  const dotBorder = darkMode ? "#60a5fa" : "#1d4ed8";
+  const labelColor = darkMode ? "#e2e8f0" : "#1e293b";
+
   return (
     <div className="flex flex-col h-full">
       <div className="p-6 border-b border-slate-800 flex items-center justify-between">
@@ -98,6 +116,29 @@ export default function MapPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          {/* View toggle */}
+          <div className="flex rounded-lg overflow-hidden border border-slate-700">
+            <button
+              className={`px-3 py-1.5 text-sm ${view === "routes" ? "bg-brand-600 text-white" : "bg-slate-800 text-slate-400 hover:text-slate-200"}`}
+              onClick={() => setView("routes")}
+            >
+              Routes
+            </button>
+            <button
+              className={`px-3 py-1.5 text-sm ${view === "bubbles" ? "bg-brand-600 text-white" : "bg-slate-800 text-slate-400 hover:text-slate-200"}`}
+              onClick={() => setView("bubbles")}
+            >
+              Airports
+            </button>
+          </div>
+          {/* Dark/light toggle */}
+          <button
+            className="p-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-slate-200 transition-colors"
+            onClick={() => setDarkMode(!darkMode)}
+            title={darkMode ? "Switch to light map" : "Switch to dark map"}
+          >
+            {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
           <select
             className="input w-auto"
             value={year || ""}
@@ -121,51 +162,82 @@ export default function MapPage() {
             style={{ height: "100%", width: "100%" }}
             worldCopyJump
           >
-            <TileLayer
-              url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png"
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>'
-            />
+            <TileSwapper url={darkMode ? DARK_TILES : LIGHT_TILES} />
 
-            {/* Routes */}
-            {routes.map((route, i) => {
-              const segments = greatCirclePoints(
-                route.dep_lat, route.dep_lon,
-                route.arr_lat, route.arr_lon
-              );
-              const opacity = 0.3 + (route.count / maxCount) * 0.5;
-              const weight = 1 + (route.count / maxCount) * 4;
-              return segments.map((seg, j) => (
-                <Polyline
-                  key={`${i}-${j}`}
-                  positions={seg}
-                  pathOptions={{
-                    color: "#3b82f6",
-                    weight,
-                    opacity,
-                  }}
-                />
-              ));
-            })}
+            {view === "routes" && (
+              <>
+                {/* Route lines */}
+                {routes.map((route, i) => {
+                  const segments = greatCirclePoints(
+                    route.dep_lat, route.dep_lon,
+                    route.arr_lat, route.arr_lon
+                  );
+                  const opacity = 0.3 + (route.count / maxCount) * 0.5;
+                  const weight = 1 + (route.count / maxCount) * 4;
+                  return segments.map((seg, j) => (
+                    <Polyline
+                      key={`${i}-${j}`}
+                      positions={seg}
+                      pathOptions={{ color: lineColor, weight, opacity }}
+                    />
+                  ));
+                })}
 
-            {/* Airports */}
-            {Array.from(airportMap.entries()).map(([iata, ap]) => (
-              <CircleMarker
-                key={iata}
-                center={[ap.lat, ap.lon]}
-                radius={4}
-                pathOptions={{
-                  color: "#60a5fa",
-                  fillColor: "#3b82f6",
-                  fillOpacity: 0.9,
-                  weight: 1.5,
-                }}
-              >
-                <Popup>
-                  <div className="text-sm font-medium">{iata}</div>
-                  <div className="text-xs text-gray-500">{ap.count} flights</div>
-                </Popup>
-              </CircleMarker>
-            ))}
+                {/* Small airport dots */}
+                {Array.from(airportMap.entries()).map(([iata, ap]) => (
+                  <CircleMarker
+                    key={iata}
+                    center={[ap.lat, ap.lon]}
+                    radius={4}
+                    pathOptions={{
+                      color: dotBorder,
+                      fillColor: dotColor,
+                      fillOpacity: 0.9,
+                      weight: 1.5,
+                    }}
+                  >
+                    <Popup>
+                      <div className="text-sm font-medium">{iata}</div>
+                      <div className="text-xs text-gray-500">{ap.count} flights</div>
+                    </Popup>
+                  </CircleMarker>
+                ))}
+              </>
+            )}
+
+            {view === "bubbles" && (
+              <>
+                {/* Sized bubbles */}
+                {Array.from(airportMap.entries()).map(([iata, ap]) => {
+                  const minR = 5;
+                  const maxR = 30;
+                  const r = minR + (ap.count / maxAirportCount) * (maxR - minR);
+                  return (
+                    <CircleMarker
+                      key={iata}
+                      center={[ap.lat, ap.lon]}
+                      radius={r}
+                      pathOptions={{
+                        color: dotBorder,
+                        fillColor: dotColor,
+                        fillOpacity: 0.5,
+                        weight: 1.5,
+                      }}
+                    >
+                      <LTooltip permanent direction="center" className="airport-label">
+                        <span style={{ color: labelColor, fontSize: 10, fontWeight: 600, textShadow: darkMode ? "0 1px 3px rgba(0,0,0,0.8)" : "0 1px 3px rgba(255,255,255,0.8)" }}>
+                          {iata}
+                        </span>
+                      </LTooltip>
+                      <Popup>
+                        <div className="text-sm font-medium">{iata}</div>
+                        <div className="text-xs text-gray-500">{ap.count} flights</div>
+                      </Popup>
+                    </CircleMarker>
+                  );
+                })}
+              </>
+            )}
           </MapContainer>
         )}
       </div>

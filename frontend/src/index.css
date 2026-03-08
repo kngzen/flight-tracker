@@ -59,6 +59,17 @@
   background: #0f172a;
 }
 
+/* Transparent tooltips for airport labels on map */
+.airport-label {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+.airport-label::before {
+  display: none !important;
+}
+
 /* React-Select dark theme */
 .react-select-container .react-select__control {
   background-color: #1e293b;
