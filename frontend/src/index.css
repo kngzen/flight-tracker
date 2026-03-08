@@ -1,0 +1,119 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-slate-950 text-slate-100 min-h-screen;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-slate-900 border border-slate-800 rounded-xl p-6;
+  }
+
+  .btn-primary {
+    @apply bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-lg font-medium transition-colors;
+  }
+
+  .btn-danger {
+    @apply bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors;
+  }
+
+  .input {
+    @apply bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent w-full;
+  }
+
+  .label {
+    @apply block text-sm font-medium text-slate-400 mb-1;
+  }
+
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .badge-economy {
+    @apply badge bg-slate-700 text-slate-200;
+  }
+
+  .badge-business {
+    @apply badge bg-blue-900 text-blue-200;
+  }
+
+  .badge-first {
+    @apply badge bg-amber-900 text-amber-200;
+  }
+
+  .badge-premium_economy {
+    @apply badge bg-purple-900 text-purple-200;
+  }
+}
+
+/* Leaflet dark map overrides */
+.leaflet-container {
+  background: #0f172a;
+}
+
+.leaflet-tile-pane {
+  filter: brightness(0.7) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
+}
+
+/* React-Select dark theme */
+.react-select-container .react-select__control {
+  background-color: #1e293b;
+  border-color: #334155;
+  color: #f1f5f9;
+}
+
+.react-select-container .react-select__control:hover {
+  border-color: #475569;
+}
+
+.react-select-container .react-select__control--is-focused {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 1px #3b82f6;
+}
+
+.react-select-container .react-select__menu {
+  background-color: #1e293b;
+  border: 1px solid #334155;
+}
+
+.react-select-container .react-select__option {
+  background-color: transparent;
+  color: #f1f5f9;
+}
+
+.react-select-container .react-select__option:hover,
+.react-select-container .react-select__option--is-focused {
+  background-color: #334155;
+}
+
+.react-select-container .react-select__option--is-selected {
+  background-color: #2563eb;
+}
+
+.react-select-container .react-select__single-value {
+  color: #f1f5f9;
+}
+
+.react-select-container .react-select__input-container {
+  color: #f1f5f9;
+}
+
+.react-select-container .react-select__placeholder {
+  color: #64748b;
+}
+
+.react-select-container .react-select__indicator-separator {
+  background-color: #334155;
+}
+
+.react-select-container .react-select__dropdown-indicator {
+  color: #64748b;
+}
