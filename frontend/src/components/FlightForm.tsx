@@ -1,10 +1,27 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { FlightCreate } from "../types";
 import AirportSelect from "./AirportSelect";
 import AirlineSelect from "./AirlineSelect";
 import { api } from "../lib/api";
 import { format } from "date-fns";
+
+function minutesToHHMM(mins: number | undefined | null): string {
+  if (!mins) return "";
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+function hhmmToMinutes(s: string): number | undefined {
+  if (!s) return undefined;
+  const parts = s.split(":");
+  if (parts.length !== 2) return undefined;
+  const h = parseInt(parts[0], 10);
+  const m = parseInt(parts[1], 10);
+  if (isNaN(h) || isNaN(m)) return undefined;
+  return h * 60 + m;
+}
 
 interface Props {
   defaultValues?: Partial<FlightCreate>;
@@ -109,16 +126,69 @@ function AircraftTypeInput({ value, onChange }: { value?: string; onChange: (v: 
 
 export default function FlightForm({ defaultValues, onSubmit, isLoading, submitLabel = "Save Flight" }: Props) {
   const today = format(new Date(), "yyyy-MM-dd");
-  const { register, handleSubmit, control, formState: { errors } } = useForm<FlightCreate>({
+  const { register, handleSubmit, control, formState: { errors }, watch, setValue } = useForm<FlightCreate>({
     defaultValues: { date: today, ...defaultValues },
   });
 
+  const [durationHHMM, setDurationHHMM] = useState(minutesToHHMM(defaultValues?.duration_minutes));
+  const [estimating, setEstimating] = useState(false);
+  const [airlineAutoFilled, setAirlineAutoFilled] = useState(false);
+
+  const depIata = watch("departure_iata");
+  const arrIata = watch("arrival_iata");
+  const flightNumber = watch("flight_number");
+
+  const estimateDuration = useCallback(async (dep: string, arr: string) => {
+    if (!dep || !arr || dep.length < 2 || arr.length < 2) return;
+    setEstimating(true);
+    try {
+      const res = await api.get("/flights/estimate-duration", { params: { departure_iata: dep, arrival_iata: arr } });
+      if (res.data.duration_minutes) {
+        const mins = res.data.duration_minutes;
+        setDurationHHMM(minutesToHHMM(mins));
+        setValue("duration_minutes", mins);
+      }
+    } catch { /* ignore */ }
+    setEstimating(false);
+  }, [setValue]);
+
+  // Auto-estimate when both airports are set and duration is empty
+  useEffect(() => {
+    if (depIata && arrIata && !durationHHMM) {
+      estimateDuration(depIata, arrIata);
+    }
+  }, [depIata, arrIata]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-fill airline from flight number prefix (e.g. "UA1234" -> "UA")
+  useEffect(() => {
+    if (!flightNumber || flightNumber.length < 3) return;
+    const match = flightNumber.toUpperCase().match(/^([A-Z\d]{2})\d/);
+    if (match && !match[1].match(/^\d{2}$/)) {
+      const prefix = match[1];
+      const currentAirline = watch("airline_iata");
+      if (!currentAirline || airlineAutoFilled) {
+        setValue("airline_iata", prefix);
+        setAirlineAutoFilled(true);
+      }
+    }
+  }, [flightNumber]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleFormSubmit = (data: FlightCreate) => {
+    // Convert HH:MM duration to minutes before submitting
+    const mins = hhmmToMinutes(durationHHMM);
+    // Clean up empty strings to undefined so they become null on the backend
+    const cleaned = Object.fromEntries(
+      Object.entries({ ...data, duration_minutes: mins }).map(([k, v]) => [k, v === "" ? undefined : v])
+    ) as unknown as FlightCreate;
+    onSubmit(cleaned);
+  };
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
       {/* Route */}
       <div className="card space-y-4">
         <h3 className="font-semibold text-slate-200">Route</h3>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="label">Departure Airport *</label>
             <Controller
@@ -156,7 +226,7 @@ export default function FlightForm({ defaultValues, onSubmit, isLoading, submitL
             )}
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="label">Date *</label>
             <input
@@ -171,10 +241,26 @@ export default function FlightForm({ defaultValues, onSubmit, isLoading, submitL
           <div>
             <label className="label">Departure Time</label>
             <input
-              type="time"
+              type="text"
               className="input"
-              {...register("departure_time")}
+              placeholder="HH:MM (24h)"
+              maxLength={5}
+              {...register("departure_time", {
+                pattern: { value: /^([01]\d|2[0-3]):[0-5]\d$/, message: "Use HH:MM format" },
+              })}
+              onBlur={(e) => {
+                // Auto-format: "930" → "09:30", "14" → "14:00"
+                let v = e.target.value.trim();
+                if (/^\d{3,4}$/.test(v)) {
+                  v = v.padStart(4, "0");
+                  e.target.value = `${v.slice(0, 2)}:${v.slice(2)}`;
+                  register("departure_time").onChange(e);
+                }
+              }}
             />
+            {errors.departure_time && (
+              <p className="text-red-400 text-xs mt-1">{errors.departure_time.message}</p>
+            )}
           </div>
         </div>
       </div>
@@ -182,7 +268,16 @@ export default function FlightForm({ defaultValues, onSubmit, isLoading, submitL
       {/* Flight Details */}
       <div className="card space-y-4">
         <h3 className="font-semibold text-slate-200">Flight Details</h3>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="label">Flight Number</label>
+            <input
+              type="text"
+              className="input"
+              placeholder="e.g. AA100"
+              {...register("flight_number")}
+            />
+          </div>
           <div>
             <label className="label">Airline</label>
             <Controller
@@ -197,17 +292,8 @@ export default function FlightForm({ defaultValues, onSubmit, isLoading, submitL
               )}
             />
           </div>
-          <div>
-            <label className="label">Flight Number</label>
-            <input
-              type="text"
-              className="input"
-              placeholder="e.g. AA100"
-              {...register("flight_number")}
-            />
-          </div>
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="label">Aircraft Type</label>
             <Controller
@@ -229,12 +315,26 @@ export default function FlightForm({ defaultValues, onSubmit, isLoading, submitL
           </div>
         </div>
         <div>
-          <label className="label">Duration (minutes)</label>
+          <label className="label">Duration (HH:MM){estimating && <span className="text-brand-400 text-xs ml-2">estimating...</span>}</label>
           <input
-            type="number"
+            type="text"
             className="input"
-            placeholder="e.g. 480"
-            {...register("duration_minutes", { valueAsNumber: true })}
+            placeholder="HH:MM"
+            maxLength={5}
+            value={durationHHMM}
+            onChange={(e) => {
+              setDurationHHMM(e.target.value);
+              setValue("duration_minutes", hhmmToMinutes(e.target.value));
+            }}
+            onBlur={(e) => {
+              let v = e.target.value.trim();
+              if (/^\d{3,4}$/.test(v)) {
+                v = v.padStart(4, "0");
+                const formatted = `${v.slice(0, 2)}:${v.slice(2)}`;
+                setDurationHHMM(formatted);
+                setValue("duration_minutes", hhmmToMinutes(formatted));
+              }
+            }}
           />
         </div>
       </div>
@@ -242,7 +342,7 @@ export default function FlightForm({ defaultValues, onSubmit, isLoading, submitL
       {/* Seat */}
       <div className="card space-y-4">
         <h3 className="font-semibold text-slate-200">Seat</h3>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
             <label className="label">Class</label>
             <select className="input" {...register("seat_class")}>
@@ -276,7 +376,7 @@ export default function FlightForm({ defaultValues, onSubmit, isLoading, submitL
       {/* Extra */}
       <div className="card space-y-4">
         <h3 className="font-semibold text-slate-200">Extra</h3>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="label">Trip Reason</label>
             <select className="input" {...register("trip_reason")}>

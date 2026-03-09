@@ -15,6 +15,7 @@ export default function StatCard({ label, value, sub, icon: Icon, color = "brand
     amber: "bg-amber-900/40 text-amber-400",
     purple: "bg-purple-900/40 text-purple-400",
     rose: "bg-rose-900/40 text-rose-400",
+    cyan: "bg-cyan-900/40 text-cyan-400",
   };
 
   return (

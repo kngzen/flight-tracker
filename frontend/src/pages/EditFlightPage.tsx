@@ -28,7 +28,11 @@ export default function EditFlightPage() {
       toast.success("Flight updated!");
       navigate("/flights");
     },
-    onError: () => toast.error("Failed to update flight"),
+    onError: (err: unknown) => {
+      const detail = (err as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
+      const msg = typeof detail === "string" ? detail : Array.isArray(detail) ? detail.map((d: { msg?: string; loc?: string[] }) => `${d.loc?.join(".")}: ${d.msg}`).join("; ") : "Failed to update flight";
+      toast.error(msg);
+    },
   });
 
   if (isLoading) {
@@ -47,20 +51,32 @@ export default function EditFlightPage() {
     departure_iata: flight.departure_iata,
     arrival_iata: flight.arrival_iata,
     date: flight.date,
+    departure_time: flight.departure_time || undefined,
+    arrival_time: flight.arrival_time || undefined,
+    departure_time_actual: flight.departure_time_actual || undefined,
+    arrival_time_actual: flight.arrival_time_actual || undefined,
+    dep_terminal: flight.dep_terminal || undefined,
+    dep_gate: flight.dep_gate || undefined,
+    arr_terminal: flight.arr_terminal || undefined,
+    arr_gate: flight.arr_gate || undefined,
     airline_iata: flight.airline_iata || undefined,
     flight_number: flight.flight_number || undefined,
     aircraft_type: flight.aircraft_type || undefined,
+    aircraft_type_icao: flight.aircraft_type_icao || undefined,
     aircraft_registration: flight.aircraft_registration || undefined,
     seat_class: flight.seat_class || undefined,
     seat_number: flight.seat_number || undefined,
     seat_position: flight.seat_position || undefined,
     duration_minutes: flight.duration_minutes || undefined,
     trip_reason: flight.trip_reason || undefined,
+    trip: flight.trip || undefined,
     notes: flight.notes || undefined,
+    pnr: flight.pnr || undefined,
+    canceled: flight.canceled || undefined,
   };
 
   return (
-    <div className="p-8 max-w-2xl">
+    <div className="p-4 md:p-8 max-w-2xl">
       <div className="mb-6">
         <Link to="/flights" className="flex items-center gap-2 text-slate-400 hover:text-slate-200 text-sm mb-4">
           <ArrowLeft className="w-4 h-4" /> Back to flights

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { Plane, Globe, Clock, Route, Building2, Milestone } from "lucide-react";
+import { Plane, Globe, Clock, Route, Building2, Milestone, Orbit } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { fetchStats, fetchFlights } from "../lib/api";
 import { Stats, Flight } from "../types";
@@ -15,7 +15,7 @@ export default function DashboardPage() {
   const recentFlights = flights?.slice(0, 5) || [];
 
   return (
-    <div className="p-8 space-y-8">
+    <div className="p-4 md:p-8 space-y-6 md:space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-white">Dashboard</h1>
         <p className="text-slate-400 mt-1">Your flight history at a glance</p>
@@ -23,7 +23,7 @@ export default function DashboardPage() {
 
       {/* Stat cards */}
       {stats && (
-        <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           <StatCard
             label="Total Flights"
             value={formatNumber(stats.total_flights)}
@@ -36,6 +36,20 @@ export default function DashboardPage() {
             sub={`${formatNumber(Math.round(stats.total_distance_km))} km`}
             icon={Route}
             color="green"
+          />
+          <StatCard
+            label="Around the Earth"
+            value={`${(stats.total_distance_km / 40075).toFixed(1)}x`}
+            sub={(() => {
+              const moon = stats.total_distance_km / 384400;
+              const sun = stats.total_distance_km / 149597870;
+              const parts = [];
+              parts.push(`${moon.toFixed(moon >= 1 ? 1 : 2)}x to Moon`);
+              parts.push(`${sun.toFixed(sun >= 0.01 ? 3 : 4)}x to Sun`);
+              return parts.join(" / ");
+            })()}
+            icon={Orbit}
+            color="cyan"
           />
           <StatCard
             label="Flight Time"
@@ -51,20 +65,20 @@ export default function DashboardPage() {
             icon={Clock}
             color="amber"
           />
+        </div>
+      )}
+
+      {stats && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           <StatCard
-            label="Countries Visited"
+            label="Countries"
             value={stats.unique_countries}
             sub={`${stats.unique_airports} airports`}
             icon={Globe}
             color="purple"
           />
-        </div>
-      )}
-
-      {stats && (
-        <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
           <StatCard
-            label="Airlines Flown"
+            label="Airlines"
             value={stats.unique_airlines}
             icon={Building2}
             color="rose"
@@ -117,7 +131,7 @@ export default function DashboardPage() {
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-slate-100">
                     {f.departure_iata} → {f.arrival_iata}
-                    <span className="text-slate-500 font-normal text-sm ml-2">
+                    <span className="text-slate-500 font-normal text-sm ml-2 hidden sm:inline">
                       {f.departure_airport?.city || ""}{f.departure_airport?.city && f.arrival_airport?.city ? " → " : ""}{f.arrival_airport?.city || ""}
                     </span>
                   </p>
@@ -142,7 +156,7 @@ export default function DashboardPage() {
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={stats.by_year.map((y) => ({ year: String(y.year), flights: y.flights }))}>
               <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-              <XAxis dataKey="year" stroke="#64748b" tick={{ fill: "#94a3b8" }} interval={0} />
+              <XAxis dataKey="year" stroke="#64748b" tick={{ fill: "#94a3b8", fontSize: 11 }} interval="preserveStartEnd" />
               <YAxis stroke="#64748b" tick={{ fill: "#94a3b8" }} allowDecimals={false} />
               <Tooltip
                 contentStyle={{ backgroundColor: "#0f172a", border: "1px solid #334155", borderRadius: 8 }}

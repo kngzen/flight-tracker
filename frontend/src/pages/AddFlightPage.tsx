@@ -22,7 +22,7 @@ export default function AddFlightPage() {
   });
 
   return (
-    <div className="p-8 max-w-2xl">
+    <div className="p-4 md:p-8 max-w-2xl">
       <div className="mb-6">
         <Link to="/flights" className="flex items-center gap-2 text-slate-400 hover:text-slate-200 text-sm mb-4">
           <ArrowLeft className="w-4 h-4" /> Back to flights

@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { MapContainer, TileLayer, CircleMarker, Popup, Polyline, Tooltip as LTooltip } from "react-leaflet";
+import { MapContainer, TileLayer, CircleMarker, Popup, Polyline, Tooltip as LTooltip, useMap } from "react-leaflet";
 import { fetchStats } from "../lib/api";
 import { Stats } from "../types";
-import { Sun, Moon } from "lucide-react";
+import { Sun, Moon, Tag } from "lucide-react";
 
 const DARK_TILES = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png";
 const LIGHT_TILES = "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png";
@@ -63,10 +63,28 @@ function TileSwapper({ url }: { url: string }) {
   return <TileLayer key={url} url={url} attribution={ATTRIBUTION} />;
 }
 
+/** Interpolate blue gradient based on t ∈ [0,1]. Darker = more visited. */
+function heatColor(t: number): string {
+  // Light sky blue → deep blue
+  const r = Math.round(186 + (30 - 186) * t);
+  const g = Math.round(230 + (64 - 230) * t);
+  const b = Math.round(253 + (175 - 253) * t);
+  return `rgb(${r},${g},${b})`;
+}
+
+function MapCenterUpdater({ lat, lon }: { lat: number; lon: number }) {
+  const map = useMap();
+  useMemo(() => {
+    map.setView([lat, lon], map.getZoom(), { animate: true });
+  }, [lat, lon]); // eslint-disable-line react-hooks/exhaustive-deps
+  return null;
+}
+
 export default function MapPage() {
   const [year, setYear] = useState<number | undefined>();
   const [view, setView] = useState<"routes" | "bubbles">("routes");
   const [darkMode, setDarkMode] = useState(true);
+  const [showLabels, setShowLabels] = useState(false);
 
   const { data: stats, isLoading } = useQuery<Stats>({
     queryKey: ["stats", year],
@@ -101,6 +119,16 @@ export default function MapPage() {
 
   const maxAirportCount = Math.max(...Array.from(airportMap.values()).map((a) => a.count), 1);
 
+  // Find busiest airport for centering
+  let busiestAirport = { lat: 37.7749, lon: -122.4194 }; // fallback: SFO
+  let busiestCount = 0;
+  airportMap.forEach((ap) => {
+    if (ap.count > busiestCount) {
+      busiestCount = ap.count;
+      busiestAirport = { lat: ap.lat, lon: ap.lon };
+    }
+  });
+
   const lineColor = darkMode ? "#3b82f6" : "#2563eb";
   const dotColor = darkMode ? "#3b82f6" : "#2563eb";
   const dotBorder = darkMode ? "#60a5fa" : "#1d4ed8";
@@ -108,31 +136,43 @@ export default function MapPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="p-6 border-b border-slate-800 flex items-center justify-between">
+      <div className="p-4 md:p-6 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-white">World Map</h1>
-          <p className="text-slate-400 mt-1">
+          <h1 className="text-xl md:text-2xl font-bold text-white">World Map</h1>
+          <p className="text-slate-400 text-sm mt-0.5">
             {routes.length} routes · {airportMap.size} airports
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           {/* View toggle */}
           <div className="flex rounded-lg overflow-hidden border border-slate-700">
             <button
+              type="button"
               className={`px-3 py-1.5 text-sm ${view === "routes" ? "bg-brand-600 text-white" : "bg-slate-800 text-slate-400 hover:text-slate-200"}`}
               onClick={() => setView("routes")}
             >
               Routes
             </button>
             <button
+              type="button"
               className={`px-3 py-1.5 text-sm ${view === "bubbles" ? "bg-brand-600 text-white" : "bg-slate-800 text-slate-400 hover:text-slate-200"}`}
               onClick={() => setView("bubbles")}
             >
               Airports
             </button>
           </div>
+          {/* Labels toggle */}
+          <button
+            type="button"
+            className={`p-2 rounded-lg border transition-colors ${showLabels ? "bg-brand-600/20 border-brand-500 text-brand-300" : "bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200"}`}
+            onClick={() => setShowLabels(!showLabels)}
+            title={showLabels ? "Hide airport codes" : "Show airport codes"}
+          >
+            <Tag className="w-4 h-4" />
+          </button>
           {/* Dark/light toggle */}
           <button
+            type="button"
             className="p-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-slate-200 transition-colors"
             onClick={() => setDarkMode(!darkMode)}
             title={darkMode ? "Switch to light map" : "Switch to dark map"}
@@ -157,12 +197,13 @@ export default function MapPage() {
           </div>
         ) : (
           <MapContainer
-            center={[20, 0]}
+            center={[busiestAirport.lat, busiestAirport.lon]}
             zoom={2}
             style={{ height: "100%", width: "100%" }}
             worldCopyJump
           >
             <TileSwapper url={darkMode ? DARK_TILES : LIGHT_TILES} />
+            <MapCenterUpdater lat={busiestAirport.lat} lon={busiestAirport.lon} />
 
             {view === "routes" && (
               <>
@@ -196,6 +237,13 @@ export default function MapPage() {
                       weight: 1.5,
                     }}
                   >
+                    {showLabels && (
+                      <LTooltip permanent direction="top" offset={[0, -6]} className="airport-label">
+                        <span style={{ color: labelColor, fontSize: 9, fontWeight: 600, textShadow: darkMode ? "0 1px 3px rgba(0,0,0,0.8)" : "0 1px 3px rgba(255,255,255,0.8)" }}>
+                          {iata}
+                        </span>
+                      </LTooltip>
+                    )}
                     <Popup>
                       <div className="text-sm font-medium">{iata}</div>
                       <div className="text-xs text-gray-500">{ap.count} flights</div>
@@ -207,28 +255,32 @@ export default function MapPage() {
 
             {view === "bubbles" && (
               <>
-                {/* Sized bubbles */}
+                {/* Sized heat-colored bubbles */}
                 {Array.from(airportMap.entries()).map(([iata, ap]) => {
                   const minR = 5;
                   const maxR = 30;
-                  const r = minR + (ap.count / maxAirportCount) * (maxR - minR);
+                  const t = ap.count / maxAirportCount; // 0..1
+                  const r = minR + t * (maxR - minR);
+                  const color = heatColor(t);
                   return (
                     <CircleMarker
                       key={iata}
                       center={[ap.lat, ap.lon]}
                       radius={r}
                       pathOptions={{
-                        color: dotBorder,
-                        fillColor: dotColor,
-                        fillOpacity: 0.5,
-                        weight: 1.5,
+                        color,
+                        fillColor: color,
+                        fillOpacity: 0.45 + t * 0.45,
+                        weight: 2,
                       }}
                     >
-                      <LTooltip permanent direction="center" className="airport-label">
-                        <span style={{ color: labelColor, fontSize: 10, fontWeight: 600, textShadow: darkMode ? "0 1px 3px rgba(0,0,0,0.8)" : "0 1px 3px rgba(255,255,255,0.8)" }}>
-                          {iata}
-                        </span>
-                      </LTooltip>
+                      {showLabels && (
+                        <LTooltip permanent direction="top" offset={[0, -(r + 4)]} className="airport-label">
+                          <span style={{ color: labelColor, fontSize: 10, fontWeight: 600, textShadow: darkMode ? "0 1px 3px rgba(0,0,0,0.8)" : "0 1px 3px rgba(255,255,255,0.8)" }}>
+                            {iata}
+                          </span>
+                        </LTooltip>
+                      )}
                       <Popup>
                         <div className="text-sm font-medium">{iata}</div>
                         <div className="text-xs text-gray-500">{ap.count} flights</div>

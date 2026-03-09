@@ -39,7 +39,7 @@ def get_stats(
             unique_airlines=0, unique_aircraft_types=0, longest_flight_km=None,
             longest_flight_route=None, by_year=[], by_class={}, by_reason={},
             by_alliance=[], top_routes=[], top_airports=[], top_airlines=[],
-            top_aircraft_types=[], top_registrations=[], map_routes=[],
+            top_aircraft_types=[], top_aircraft_icao=[], top_registrations=[], map_routes=[],
         )
 
     total_distance = sum(f.distance_km or 0 for f in flights)
@@ -163,14 +163,27 @@ def get_stats(
         })
 
     # Top aircraft types
-    aircraft_data: dict = defaultdict(lambda: {"count": 0, "distance_km": 0.0})
+    aircraft_data: dict = defaultdict(lambda: {"count": 0, "distance_km": 0.0, "icao": None})
     for f in flights:
         if f.aircraft_type:
             aircraft_data[f.aircraft_type]["count"] += 1
             aircraft_data[f.aircraft_type]["distance_km"] += f.distance_km or 0
+            if f.aircraft_type_icao:
+                aircraft_data[f.aircraft_type]["icao"] = f.aircraft_type_icao
     top_aircraft_types = [
-        {"aircraft_type": k, "count": v["count"], "distance_km": round(v["distance_km"], 1)}
+        {"aircraft_type": k, "aircraft_type_icao": v["icao"], "count": v["count"], "distance_km": round(v["distance_km"], 1)}
         for k, v in sorted(aircraft_data.items(), key=lambda x: x[1][rank_key], reverse=True)[:limit]
+    ]
+
+    # Top aircraft by ICAO code
+    icao_data: dict = defaultdict(lambda: {"count": 0, "distance_km": 0.0})
+    for f in flights:
+        if f.aircraft_type_icao:
+            icao_data[f.aircraft_type_icao]["count"] += 1
+            icao_data[f.aircraft_type_icao]["distance_km"] += f.distance_km or 0
+    top_aircraft_icao = [
+        {"aircraft_type_icao": k, "count": v["count"], "distance_km": round(v["distance_km"], 1)}
+        for k, v in sorted(icao_data.items(), key=lambda x: x[1][rank_key], reverse=True)[:limit]
     ]
 
     # Top registrations
@@ -219,6 +232,7 @@ def get_stats(
         top_airports=top_airports,
         top_airlines=top_airlines,
         top_aircraft_types=top_aircraft_types,
+        top_aircraft_icao=top_aircraft_icao,
         top_registrations=top_registrations,
         map_routes=map_routes,
     )

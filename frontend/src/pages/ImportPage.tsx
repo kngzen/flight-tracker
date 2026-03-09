@@ -5,8 +5,10 @@ import { importOpenFlights } from "../lib/api";
 import toast from "react-hot-toast";
 
 interface ImportResult {
+  format?: string;
   imported: number;
   skipped: number;
+  duplicates?: number;
   errors: string[];
 }
 
@@ -47,33 +49,39 @@ export default function ImportPage() {
   };
 
   return (
-    <div className="p-8 max-w-2xl space-y-6">
+    <div className="p-4 md:p-8 max-w-2xl space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-white">Import Flights</h1>
-        <p className="text-slate-400 mt-1">Import from OpenFlights CSV format</p>
+        <p className="text-slate-400 mt-1">Import from Flighty or OpenFlights CSV</p>
       </div>
 
       {/* Format info */}
       <div className="card space-y-3">
         <h2 className="font-semibold text-slate-200 flex items-center gap-2">
           <FileText className="w-4 h-4" />
-          Expected CSV Format
+          Supported CSV Formats
         </h2>
-        <p className="text-sm text-slate-400">
-          The importer accepts CSV files with any of these column names (case-insensitive):
-        </p>
-        <div className="bg-slate-950 rounded-lg p-3 font-mono text-xs text-slate-300 overflow-x-auto">
-          date, from, to, airline, flight_number, aircraft, seat_class, seat, duration, reason, note
+        <div className="space-y-3">
+          <div>
+            <p className="text-sm font-medium text-slate-300">Flighty Export</p>
+            <p className="text-sm text-slate-400">
+              Export from the Flighty app. Auto-detected by column headers. Includes airline, aircraft,
+              terminals, gates, seat info, and more. Re-imports are safe — flights with the same Flighty ID
+              are automatically skipped.
+            </p>
+          </div>
+          <div>
+            <p className="text-sm font-medium text-slate-300">OpenFlights / Custom CSV</p>
+            <p className="text-sm text-slate-400">
+              Columns (case-insensitive): <code className="text-slate-300">date</code>,{" "}
+              <code className="text-slate-300">from</code>, <code className="text-slate-300">to</code>,{" "}
+              <code className="text-slate-300">airline</code>, <code className="text-slate-300">flight_number</code>,{" "}
+              <code className="text-slate-300">aircraft</code>, <code className="text-slate-300">seat_class</code>,{" "}
+              <code className="text-slate-300">duration</code>, <code className="text-slate-300">reason</code>,{" "}
+              <code className="text-slate-300">note</code>. Only date, from, and to are required.
+            </p>
+          </div>
         </div>
-        <p className="text-sm text-slate-400">
-          Only <strong className="text-slate-200">date</strong>, <strong className="text-slate-200">from</strong>{" "}
-          (IATA code), and <strong className="text-slate-200">to</strong> (IATA code) are required. All other
-          fields are optional.
-        </p>
-        <p className="text-sm text-slate-400">
-          Date formats accepted: <code className="text-slate-300">YYYY-MM-DD</code>,{" "}
-          <code className="text-slate-300">DD/MM/YYYY</code>, <code className="text-slate-300">MM/DD/YYYY</code>
-        </p>
       </div>
 
       {/* Drop zone */}
@@ -127,9 +135,11 @@ export default function ImportPage() {
           <div className="card flex items-start gap-3">
             <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5" />
             <div>
-              <p className="font-medium text-slate-200">Import complete</p>
+              <p className="font-medium text-slate-200">Import complete{result.format ? ` (${result.format} format)` : ""}</p>
               <p className="text-sm text-slate-400 mt-0.5">
-                {result.imported} flights imported · {result.skipped} rows skipped
+                {result.imported} flights imported
+                {result.duplicates ? ` · ${result.duplicates} duplicates skipped` : ""}
+                {result.skipped ? ` · ${result.skipped} rows skipped` : ""}
               </p>
             </div>
           </div>

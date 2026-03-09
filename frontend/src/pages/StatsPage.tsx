@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
@@ -7,7 +8,7 @@ import {
 import { fetchStats } from "../lib/api";
 import { Stats } from "../types";
 import StatCard from "../components/StatCard";
-import { Plane, Globe, Route, Clock, Building2, Milestone } from "lucide-react";
+import { Plane, Globe, Route, Clock, Building2, Milestone, Orbit } from "lucide-react";
 import { formatNumber, kmToMiles } from "../lib/utils";
 import { seatClassLabel } from "../lib/utils";
 
@@ -70,19 +71,26 @@ function CountryFlag({ code }: { code: string | null }) {
 }
 
 export default function StatsPage() {
+  const navigate = useNavigate();
   const [year, setYear] = useState<number | undefined>();
   const [limit, setLimit] = useState(10);
   const [sortBy, setSortBy] = useState<"flights" | "distance">("flights");
 
+  const goToFlights = (params: Record<string, string>) => {
+    const sp = new URLSearchParams(params);
+    navigate(`/flights?${sp.toString()}`);
+  };
+
   const { data: stats, isLoading } = useQuery<Stats>({
     queryKey: ["stats", year, limit, sortBy],
     queryFn: () => fetchStats(year, limit, sortBy),
+    placeholderData: keepPreviousData,
   });
 
   if (isLoading) return <div className="p-8 text-slate-400">Loading statistics...</div>;
   if (!stats) return null;
 
-  const years = stats.by_year.map((y) => y.year);
+  const years = [...stats.by_year.map((y) => y.year)].reverse();
   const isMileageMode = sortBy === "distance";
 
   const byYearData = stats.by_year.map((y) => ({
@@ -119,14 +127,49 @@ export default function StatsPage() {
   };
 
   return (
-    <div className="p-8 space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-white">Statistics</h1>
-        <p className="text-slate-400 mt-1">{year ? `${year} statistics` : "All-time statistics"}</p>
+    <div className="p-4 md:p-8 space-y-6 md:space-y-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Statistics</h1>
+          <p className="text-slate-400 mt-1">{year ? `${year} statistics` : "All-time statistics"}</p>
+        </div>
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex rounded-lg overflow-hidden border border-slate-700">
+            <button
+              type="button"
+              className={`px-3 py-1.5 text-sm ${sortBy === "flights" ? "bg-brand-600 text-white" : "bg-slate-800 text-slate-400 hover:text-slate-200"}`}
+              onClick={() => setSortBy("flights")}
+            >
+              By Flights
+            </button>
+            <button
+              type="button"
+              className={`px-3 py-1.5 text-sm ${sortBy === "distance" ? "bg-brand-600 text-white" : "bg-slate-800 text-slate-400 hover:text-slate-200"}`}
+              onClick={() => setSortBy("distance")}
+            >
+              By Mileage
+            </button>
+          </div>
+          <select
+            className="input w-auto"
+            value={year || ""}
+            onChange={(e) => setYear(e.target.value ? Number(e.target.value) : undefined)}
+          >
+            <option value="">All years</option>
+            {years.map((y) => <option key={y} value={y}>{y}</option>)}
+          </select>
+          <select
+            className="input w-auto"
+            value={limit}
+            onChange={(e) => setLimit(Number(e.target.value))}
+          >
+            {LIMIT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </div>
       </div>
 
       {/* Overview */}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <StatCard label="Total Flights" value={formatNumber(stats.total_flights)} icon={Plane} color="brand" />
         <StatCard
           label="Total Distance"
@@ -136,12 +179,28 @@ export default function StatsPage() {
           color="green"
         />
         <StatCard
+          label="Around the Earth"
+          value={`${(stats.total_distance_km / 40075).toFixed(1)}x`}
+          sub={(() => {
+            const moon = stats.total_distance_km / 384400;
+            const sun = stats.total_distance_km / 149597870;
+            const parts = [];
+            parts.push(`${moon.toFixed(moon >= 1 ? 1 : 2)}x to Moon`);
+            parts.push(`${sun.toFixed(sun >= 0.01 ? 3 : 4)}x to Sun`);
+            return parts.join(" / ");
+          })()}
+          icon={Orbit}
+          color="cyan"
+        />
+        <StatCard
           label="Flight Time"
           value={formatDurationPrimary(stats.total_duration_minutes)}
           sub={formatDurationSub(stats.total_duration_minutes)}
           icon={Clock}
           color="amber"
         />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <StatCard
           label="Countries"
           value={stats.unique_countries}
@@ -149,8 +208,6 @@ export default function StatsPage() {
           icon={Globe}
           color="purple"
         />
-      </div>
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
         <StatCard label="Airlines" value={stats.unique_airlines} icon={Building2} color="rose" />
         <StatCard label="Aircraft Types" value={stats.unique_aircraft_types} icon={Plane} color="brand" />
         {stats.longest_flight_km && (
@@ -162,71 +219,6 @@ export default function StatsPage() {
             color="green"
           />
         )}
-      </div>
-
-      {/* Flights per year bar chart */}
-      {byYearData.length > 0 && (
-        <div className="card">
-          <h2 className="font-semibold text-slate-200 mb-4">Flights per Year</h2>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={byYearData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-              <XAxis dataKey="year" stroke="#64748b" tick={{ fill: "#94a3b8" }} interval={0} angle={-45} textAnchor="end" height={50} />
-              <YAxis stroke="#64748b" tick={{ fill: "#94a3b8" }} />
-              <Tooltip {...tooltipStyle} />
-              <Bar dataKey="flights" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      )}
-
-      {/* Distance per year */}
-      {byYearData.length > 0 && (
-        <div className="card">
-          <h2 className="font-semibold text-slate-200 mb-4">Distance per Year (miles)</h2>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={byYearData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-              <XAxis dataKey="year" stroke="#64748b" tick={{ fill: "#94a3b8" }} interval={0} angle={-45} textAnchor="end" height={50} />
-              <YAxis stroke="#64748b" tick={{ fill: "#94a3b8" }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-              <Tooltip {...tooltipStyle} formatter={(v: number) => [`${formatNumber(v)} mi`, "Distance"]} />
-              <Bar dataKey="distance" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      )}
-
-      {/* Filters - placed after charts, before ranked lists */}
-      <div className="flex items-center justify-end gap-3 flex-wrap">
-        <div className="flex rounded-lg overflow-hidden border border-slate-700">
-          <button
-            className={`px-3 py-1.5 text-sm ${sortBy === "flights" ? "bg-brand-600 text-white" : "bg-slate-800 text-slate-400 hover:text-slate-200"}`}
-            onClick={() => setSortBy("flights")}
-          >
-            By Flights
-          </button>
-          <button
-            className={`px-3 py-1.5 text-sm ${sortBy === "distance" ? "bg-brand-600 text-white" : "bg-slate-800 text-slate-400 hover:text-slate-200"}`}
-            onClick={() => setSortBy("distance")}
-          >
-            By Mileage
-          </button>
-        </div>
-        <select
-          className="input w-auto"
-          value={year || ""}
-          onChange={(e) => setYear(e.target.value ? Number(e.target.value) : undefined)}
-        >
-          <option value="">All years</option>
-          {years.map((y) => <option key={y} value={y}>{y}</option>)}
-        </select>
-        <select
-          className="input w-auto"
-          value={limit}
-          onChange={(e) => setLimit(Number(e.target.value))}
-        >
-          {LIMIT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
       </div>
 
       {/* Pie charts */}
@@ -290,14 +282,18 @@ export default function StatsPage() {
           <h2 className="font-semibold text-slate-200 mb-4">Top Routes</h2>
           <div className="space-y-2">
             {stats.top_routes.map((r, i) => (
-              <div key={i} className="flex items-center gap-3">
+              <div
+                key={i}
+                className="flex items-center gap-3 cursor-pointer rounded-lg px-2 py-1.5 -mx-2 hover:bg-slate-800 transition-colors"
+                onClick={() => goToFlights({ from: r.departure_iata, to: r.arrival_iata })}
+              >
                 <span className="text-xs text-slate-500 w-6">{i + 1}</span>
                 <div className="flex-1">
                   <span className="text-slate-200 font-medium">
                     {r.departure_iata} → {r.arrival_iata}
                   </span>
                   {(r.departure_name || r.arrival_name) && (
-                    <span className="text-slate-500 text-sm ml-2">
+                    <span className="text-slate-500 text-sm ml-2 hidden sm:inline">
                       {r.departure_name} → {r.arrival_name}
                     </span>
                   )}
@@ -319,14 +315,18 @@ export default function StatsPage() {
               const curVal = isMileageMode ? a.distance_km : a.count;
               const pct = maxVal > 0 ? Math.round((curVal / maxVal) * 100) : 0;
               return (
-                <div key={i} className="flex items-center gap-3">
+                <div
+                  key={i}
+                  className="flex items-center gap-3 cursor-pointer rounded-lg px-2 py-1.5 -mx-2 hover:bg-slate-800 transition-colors"
+                  onClick={() => goToFlights({ from: a.iata })}
+                >
                   <span className="text-xs text-slate-500 w-6">{i + 1}</span>
                   <CountryFlag code={a.country_code} />
                   <span className="font-mono text-brand-400 w-10">{a.iata}</span>
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-slate-200 text-sm">{a.name}</span>
-                      {a.city && <span className="text-slate-500 text-xs">{a.city}, {a.country}</span>}
+                      {a.city && <span className="text-slate-500 text-xs hidden sm:inline">{a.city}, {a.country}</span>}
                     </div>
                     <div className="bg-slate-800 rounded-full h-1.5">
                       <div className="bg-brand-500 h-1.5 rounded-full" style={{ width: `${pct}%` }} />
@@ -348,7 +348,11 @@ export default function StatsPage() {
           <h2 className="font-semibold text-slate-200 mb-4">Most Flown Airlines</h2>
           <div className="space-y-2">
             {stats.top_airlines.map((a, i) => (
-              <div key={i} className="flex items-center gap-3">
+              <div
+                key={i}
+                className="flex items-center gap-3 cursor-pointer rounded-lg px-2 py-1.5 -mx-2 hover:bg-slate-800 transition-colors"
+                onClick={() => a.iata && goToFlights({ airline: a.iata })}
+              >
                 <span className="text-xs text-slate-500 w-6">{i + 1}</span>
                 <AirlineLogo iata={a.iata} />
                 <span className="font-mono text-brand-400 w-10">{a.iata || "\u2014"}</span>
@@ -362,42 +366,85 @@ export default function StatsPage() {
         </div>
       )}
 
-      {/* Top aircraft types */}
-      {stats.top_aircraft_types.length > 0 && (
-        <div className="card">
-          <h2 className="font-semibold text-slate-200 mb-4">Most Flown Aircraft Types</h2>
-          <div className="space-y-2">
-            {stats.top_aircraft_types.map((a, i) => (
-              <div key={i} className="flex items-center gap-3">
-                <span className="text-xs text-slate-500 w-6">{i + 1}</span>
-                <Plane className="w-4 h-4 text-slate-500 flex-shrink-0" />
-                <span className="flex-1 text-slate-200 text-sm">{a.aircraft_type}</span>
-                <span className="text-sm text-slate-400">
-                  {isMileageMode ? formatMiles(a.distance_km) : `${a.count} flights`}
-                </span>
-              </div>
-            ))}
+      {/* Top aircraft types - side by side */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+        {stats.top_aircraft_types.length > 0 && (
+          <div className="card">
+            <h2 className="font-semibold text-slate-200 mb-4">Most Flown Aircraft (Type Name)</h2>
+            <div className="space-y-2">
+              {stats.top_aircraft_types.map((a, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-3 cursor-pointer rounded-lg px-2 py-1.5 -mx-2 hover:bg-slate-800 transition-colors"
+                  onClick={() => goToFlights({ aircraft: a.aircraft_type })}
+                >
+                  <span className="text-xs text-slate-500 w-6">{i + 1}</span>
+                  <Plane className="w-4 h-4 text-slate-500 flex-shrink-0" />
+                  <span className="flex-1 text-slate-200 text-sm">{a.aircraft_type}</span>
+                  <span className="text-sm text-slate-400">
+                    {isMileageMode ? formatMiles(a.distance_km) : `${a.count} flights`}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
+        )}
+
+        {stats.top_aircraft_icao.length > 0 && (
+          <div className="card">
+            <h2 className="font-semibold text-slate-200 mb-4">Most Flown Aircraft (ICAO Code)</h2>
+            <div className="space-y-2">
+              {stats.top_aircraft_icao.map((a, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-3 cursor-pointer rounded-lg px-2 py-1.5 -mx-2 hover:bg-slate-800 transition-colors"
+                  onClick={() => goToFlights({ aircraft_icao: a.aircraft_type_icao })}
+                >
+                  <span className="text-xs text-slate-500 w-6">{i + 1}</span>
+                  <Plane className="w-4 h-4 text-slate-500 flex-shrink-0" />
+                  <span className="flex-1 text-slate-200 text-sm">{a.aircraft_type_icao}</span>
+                  <span className="text-sm text-slate-400">
+                    {isMileageMode ? formatMiles(a.distance_km) : `${a.count} flights`}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Flights per year bar chart */}
+      {byYearData.length > 0 && (
+        <div className="card">
+          <h2 className="font-semibold text-slate-200 mb-4">Flights per Year</h2>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={byYearData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+              <XAxis dataKey="year" stroke="#64748b" tick={{ fill: "#94a3b8", fontSize: 11 }} interval="preserveStartEnd" angle={-45} textAnchor="end" height={50} />
+              <YAxis stroke="#64748b" tick={{ fill: "#94a3b8" }} />
+              <Tooltip {...tooltipStyle} />
+              <Bar dataKey="flights" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
       )}
 
-      {/* Top registrations */}
-      {stats.top_registrations.length > 0 && (
+      {/* Distance per year */}
+      {byYearData.length > 0 && (
         <div className="card">
-          <h2 className="font-semibold text-slate-200 mb-4">Most Flown Registrations</h2>
-          <div className="space-y-2">
-            {stats.top_registrations.map((r, i) => (
-              <div key={i} className="flex items-center gap-3">
-                <span className="text-xs text-slate-500 w-6">{i + 1}</span>
-                <span className="font-mono text-brand-400 flex-1">{r.registration}</span>
-                <span className="text-sm text-slate-400">
-                  {isMileageMode ? formatMiles(r.distance_km) : `${r.count} flights`}
-                </span>
-              </div>
-            ))}
-          </div>
+          <h2 className="font-semibold text-slate-200 mb-4">Distance per Year (miles)</h2>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={byYearData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+              <XAxis dataKey="year" stroke="#64748b" tick={{ fill: "#94a3b8", fontSize: 11 }} interval="preserveStartEnd" angle={-45} textAnchor="end" height={50} />
+              <YAxis stroke="#64748b" tick={{ fill: "#94a3b8" }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+              <Tooltip {...tooltipStyle} formatter={(v: number) => [`${formatNumber(v)} mi`, "Distance"]} />
+              <Bar dataKey="distance" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
       )}
+
     </div>
   );
 }

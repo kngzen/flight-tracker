@@ -24,9 +24,17 @@ export interface Flight {
   arrival_iata: string;
   date: string;
   departure_time: string | null;
+  arrival_time: string | null;
+  departure_time_actual: string | null;
+  arrival_time_actual: string | null;
+  dep_terminal: string | null;
+  dep_gate: string | null;
+  arr_terminal: string | null;
+  arr_gate: string | null;
   airline_iata: string | null;
   flight_number: string | null;
   aircraft_type: string | null;
+  aircraft_type_icao: string | null;
   aircraft_registration: string | null;
   seat_class: string | null;
   seat_number: string | null;
@@ -36,6 +44,9 @@ export interface Flight {
   trip_reason: string | null;
   trip: string | null;
   notes: string | null;
+  pnr: string | null;
+  canceled: boolean;
+  flighty_id: string | null;
   departure_airport: Airport | null;
   arrival_airport: Airport | null;
   airline: { iata: string; name: string; country: string } | null;
@@ -46,9 +57,17 @@ export interface FlightCreate {
   arrival_iata: string;
   date: string;
   departure_time?: string;
+  arrival_time?: string;
+  departure_time_actual?: string;
+  arrival_time_actual?: string;
+  dep_terminal?: string;
+  dep_gate?: string;
+  arr_terminal?: string;
+  arr_gate?: string;
   airline_iata?: string;
   flight_number?: string;
   aircraft_type?: string;
+  aircraft_type_icao?: string;
   aircraft_registration?: string;
   seat_class?: string;
   seat_number?: string;
@@ -57,6 +76,8 @@ export interface FlightCreate {
   trip_reason?: string;
   trip?: string;
   notes?: string;
+  pnr?: string;
+  canceled?: boolean;
 }
 
 export interface YearStat {
@@ -94,6 +115,13 @@ export interface TopAirline {
 
 export interface TopAircraftType {
   aircraft_type: string;
+  aircraft_type_icao: string | null;
+  count: number;
+  distance_km: number;
+}
+
+export interface TopAircraftIcao {
+  aircraft_type_icao: string;
   count: number;
   distance_km: number;
 }
@@ -144,6 +172,7 @@ export interface Stats {
   top_airports: TopAirport[];
   top_airlines: TopAirline[];
   top_aircraft_types: TopAircraftType[];
+  top_aircraft_icao: TopAircraftIcao[];
   top_registrations: TopRegistration[];
   map_routes: MapRoute[];
 }

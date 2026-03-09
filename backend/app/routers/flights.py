@@ -90,6 +90,42 @@ def create_flight(
     return enrich_flight(flight, db)
 
 
+@router.get("/estimate-duration")
+def estimate_duration(
+    departure_iata: str = Query(...),
+    arrival_iata: str = Query(...),
+    db: Session = Depends(get_db),
+    _: str = Depends(get_current_user),
+):
+    """Estimate flight duration based on great-circle distance.
+    Uses average cruise speed of ~850 km/h plus 30 min for taxi/climb/descent."""
+    distance = compute_distance(departure_iata.upper(), arrival_iata.upper(), db)
+    if distance is None:
+        return {"duration_minutes": None}
+    cruise_speed_kmh = 850
+    overhead_minutes = 30
+    minutes = round(distance / cruise_speed_kmh * 60 + overhead_minutes)
+    return {"duration_minutes": minutes, "distance_km": distance}
+
+
+@router.get("/aircraft-types/suggest")
+def suggest_aircraft_types(
+    q: str = Query("", min_length=1),
+    db: Session = Depends(get_db),
+    _: str = Depends(get_current_user),
+):
+    """Return distinct aircraft types matching the query."""
+    types = (
+        db.query(Flight.aircraft_type)
+        .filter(Flight.aircraft_type.isnot(None))
+        .filter(Flight.aircraft_type.ilike(f"%{q}%"))
+        .distinct()
+        .limit(20)
+        .all()
+    )
+    return [t[0] for t in types if t[0]]
+
+
 @router.get("/{flight_id}", response_model=FlightOut)
 def get_flight(
     flight_id: int,
@@ -124,24 +160,6 @@ def update_flight(
     db.commit()
     db.refresh(flight)
     return enrich_flight(flight, db)
-
-
-@router.get("/aircraft-types/suggest")
-def suggest_aircraft_types(
-    q: str = Query("", min_length=1),
-    db: Session = Depends(get_db),
-    _: str = Depends(get_current_user),
-):
-    """Return distinct aircraft types matching the query."""
-    types = (
-        db.query(Flight.aircraft_type)
-        .filter(Flight.aircraft_type.isnot(None))
-        .filter(Flight.aircraft_type.ilike(f"%{q}%"))
-        .distinct()
-        .limit(20)
-        .all()
-    )
-    return [t[0] for t in types if t[0]]
 
 
 @router.delete("/{flight_id}", status_code=204)
