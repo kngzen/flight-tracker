@@ -223,14 +223,15 @@ def import_flighty_row(row: dict, db: Session, get_airport, get_airline_iata_by_
     arr_time = extract_time(n.get("gate arrival (scheduled)") or "")
     arr_time_actual = extract_time(n.get("gate arrival (actual)") or "")
 
-    # Duration: compute from actual gate departure/arrival times
-    duration = compute_duration_from_times(
-        n.get("gate departure (actual)") or "",
-        n.get("gate arrival (actual)") or ""
-    )
-
     # Distance
     distance = compute_distance(dep_iata, arr_iata)
+
+    # Duration: Flighty timestamps are in local time at each airport,
+    # so cross-timezone flights produce wrong durations.
+    # Use distance-based estimation instead (850 km/h cruise + 30 min overhead).
+    duration = None
+    if distance:
+        duration = round(distance / 850 * 60 + 30)
 
     # Aircraft
     aircraft_type = n.get("aircraft type name") or None
