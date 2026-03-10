@@ -9,6 +9,8 @@ import EditFlightPage from "./pages/EditFlightPage";
 import MapPage from "./pages/MapPage";
 import StatsPage from "./pages/StatsPage";
 import ImportPage from "./pages/ImportPage";
+import RegisterPage from "./pages/RegisterPage";
+import AccountPage from "./pages/AccountPage";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   return isAuthenticated() ? <>{children}</> : <Navigate to="/login" replace />;
@@ -18,6 +20,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
       <Route
         path="/"
         element={
@@ -33,6 +36,7 @@ export default function App() {
         <Route path="map" element={<MapPage />} />
         <Route path="stats" element={<StatsPage />} />
         <Route path="import" element={<ImportPage />} />
+        <Route path="account" element={<AccountPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

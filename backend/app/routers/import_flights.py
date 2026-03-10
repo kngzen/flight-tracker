@@ -12,6 +12,7 @@ from app.database import get_db
 from app.models.airline import Airline
 from app.models.airport import Airport
 from app.models.flight import Flight
+from app.models.user import User
 from app.utils.auth import get_current_user
 from app.utils.geo import haversine_km
 from app.utils.aircraft import get_aircraft_icao
@@ -398,7 +399,7 @@ def import_openflights_row(row: dict, db: Session, get_airport, get_airline_iata
 async def import_flights(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    _: str = Depends(get_current_user),
+    user: User = Depends(get_current_user),
 ):
     """
     Import flights from CSV. Auto-detects Flighty or OpenFlights format.
@@ -421,10 +422,12 @@ async def import_flights(
 
     get_airport, get_airline_iata_by_name, get_airline_iata_by_icao, compute_dist = build_caches(db)
 
-    # Pre-load existing flighty IDs for dedup
+    # Pre-load existing flighty IDs for dedup (scoped to current user)
     existing_flighty_ids: set[str] = set()
     if fmt == "flighty":
-        rows = db.query(Flight.flighty_id).filter(Flight.flighty_id.isnot(None)).all()
+        rows = db.query(Flight.flighty_id).filter(
+            Flight.flighty_id.isnot(None), Flight.user_id == user.id
+        ).all()
         existing_flighty_ids = {r[0] for r in rows}
 
     for i, row in enumerate(reader, start=2):
@@ -446,6 +449,7 @@ async def import_flights(
             elif flight is None:
                 duplicates += 1
             else:
+                flight.user_id = user.id
                 db.add(flight)
                 if flight.flighty_id:
                     existing_flighty_ids.add(flight.flighty_id)

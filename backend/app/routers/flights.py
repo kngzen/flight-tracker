@@ -7,6 +7,7 @@ from app.database import get_db
 from app.models.flight import Flight
 from app.models.airport import Airport
 from app.models.airline import Airline
+from app.models.user import User
 from app.schemas.flight import FlightCreate, FlightOut, FlightUpdate
 from app.utils.auth import get_current_user
 from app.utils.geo import haversine_km
@@ -52,9 +53,9 @@ def list_flights(
     limit: int = Query(10000, le=10000),
     year: Optional[int] = None,
     db: Session = Depends(get_db),
-    _: str = Depends(get_current_user),
+    user: User = Depends(get_current_user),
 ):
-    query = db.query(Flight)
+    query = db.query(Flight).filter(Flight.user_id == user.id)
     if year:
         from sqlalchemy import extract
         query = query.filter(extract("year", Flight.date) == year)
@@ -66,12 +67,12 @@ def list_flights(
 def delete_all_flights(
     body: DeleteAllConfirm,
     db: Session = Depends(get_db),
-    _: str = Depends(get_current_user),
+    user: User = Depends(get_current_user),
 ):
-    """Delete all flights. Requires confirmation field to be exactly 'delete'."""
+    """Delete all flights for the current user."""
     if body.confirmation != "delete":
         raise HTTPException(status_code=400, detail="Type 'delete' to confirm")
-    count = db.query(Flight).delete()
+    count = db.query(Flight).filter(Flight.user_id == user.id).delete()
     db.commit()
     return {"deleted": count}
 
@@ -80,10 +81,10 @@ def delete_all_flights(
 def create_flight(
     payload: FlightCreate,
     db: Session = Depends(get_db),
-    _: str = Depends(get_current_user),
+    user: User = Depends(get_current_user),
 ):
     distance = compute_distance(payload.departure_iata, payload.arrival_iata, db)
-    flight = Flight(**payload.model_dump(), distance_km=distance)
+    flight = Flight(**payload.model_dump(), user_id=user.id, distance_km=distance)
     db.add(flight)
     db.commit()
     db.refresh(flight)
@@ -95,10 +96,9 @@ def estimate_duration(
     departure_iata: str = Query(...),
     arrival_iata: str = Query(...),
     db: Session = Depends(get_db),
-    _: str = Depends(get_current_user),
+    user: User = Depends(get_current_user),
 ):
-    """Estimate flight duration based on great-circle distance.
-    Uses average cruise speed of ~850 km/h plus 30 min for taxi/climb/descent."""
+    """Estimate flight duration based on great-circle distance."""
     distance = compute_distance(departure_iata.upper(), arrival_iata.upper(), db)
     if distance is None:
         return {"duration_minutes": None}
@@ -112,11 +112,12 @@ def estimate_duration(
 def suggest_aircraft_types(
     q: str = Query("", min_length=1),
     db: Session = Depends(get_db),
-    _: str = Depends(get_current_user),
+    user: User = Depends(get_current_user),
 ):
     """Return distinct aircraft types matching the query."""
     types = (
         db.query(Flight.aircraft_type)
+        .filter(Flight.user_id == user.id)
         .filter(Flight.aircraft_type.isnot(None))
         .filter(Flight.aircraft_type.ilike(f"%{q}%"))
         .distinct()
@@ -130,9 +131,9 @@ def suggest_aircraft_types(
 def get_flight(
     flight_id: int,
     db: Session = Depends(get_db),
-    _: str = Depends(get_current_user),
+    user: User = Depends(get_current_user),
 ):
-    flight = db.query(Flight).filter(Flight.id == flight_id).first()
+    flight = db.query(Flight).filter(Flight.id == flight_id, Flight.user_id == user.id).first()
     if not flight:
         raise HTTPException(status_code=404, detail="Flight not found")
     return enrich_flight(flight, db)
@@ -143,9 +144,9 @@ def update_flight(
     flight_id: int,
     payload: FlightUpdate,
     db: Session = Depends(get_db),
-    _: str = Depends(get_current_user),
+    user: User = Depends(get_current_user),
 ):
-    flight = db.query(Flight).filter(Flight.id == flight_id).first()
+    flight = db.query(Flight).filter(Flight.id == flight_id, Flight.user_id == user.id).first()
     if not flight:
         raise HTTPException(status_code=404, detail="Flight not found")
 
@@ -153,7 +154,6 @@ def update_flight(
     for key, value in update_data.items():
         setattr(flight, key, value)
 
-    # Recompute distance if route changed
     if "departure_iata" in update_data or "arrival_iata" in update_data:
         flight.distance_km = compute_distance(flight.departure_iata, flight.arrival_iata, db)
 
@@ -166,9 +166,9 @@ def update_flight(
 def delete_flight(
     flight_id: int,
     db: Session = Depends(get_db),
-    _: str = Depends(get_current_user),
+    user: User = Depends(get_current_user),
 ):
-    flight = db.query(Flight).filter(Flight.id == flight_id).first()
+    flight = db.query(Flight).filter(Flight.id == flight_id, Flight.user_id == user.id).first()
     if not flight:
         raise HTTPException(status_code=404, detail="Flight not found")
     db.delete(flight)

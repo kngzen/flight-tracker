@@ -1,5 +1,5 @@
 from datetime import date
-from sqlalchemy import Boolean, Column, Date, Float, Integer, String, Text
+from sqlalchemy import Boolean, Column, Date, Float, ForeignKey, Integer, String, Text
 from app.database import Base
 
 
@@ -7,6 +7,7 @@ class Flight(Base):
     __tablename__ = "flights"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
 
     # Route
     departure_iata = Column(String(3), nullable=False, index=True)

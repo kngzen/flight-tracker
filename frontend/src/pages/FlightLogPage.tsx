@@ -9,7 +9,7 @@ import { format } from "date-fns";
 import { formatDuration, formatDistance, seatClassLabel, seatClassBadge } from "../lib/utils";
 import toast from "react-hot-toast";
 
-type SortKey = "date" | "departure_iata" | "arrival_iata" | "distance_km";
+type SortKey = "date" | "departure_iata" | "arrival_iata" | "flight_number" | "airline_iata" | "aircraft_type" | "aircraft_registration" | "seat_class" | "seat_number" | "distance_km" | "duration_minutes" | "trip_reason" | "trip";
 type SelectOption = { value: string; label: string };
 
 const selectStyles = {
@@ -187,8 +187,15 @@ export default function FlightLogPage() {
   }, [flights, filterAirlines, filterFrom, filterTo, filterAircraft, filterAircraftIcao]);
 
   const sorted = [...filtered].sort((a, b) => {
-    const aVal = a[sortKey] ?? "";
-    const bVal = b[sortKey] ?? "";
+    let aVal: string | number | null;
+    let bVal: string | number | null;
+    if (sortKey === "airline_iata") {
+      aVal = a.airline?.name ?? a.airline_iata ?? "";
+      bVal = b.airline?.name ?? b.airline_iata ?? "";
+    } else {
+      aVal = a[sortKey] ?? "";
+      bVal = b[sortKey] ?? "";
+    }
     const cmp = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
     return sortDir === "asc" ? cmp : -cmp;
   });
@@ -198,7 +205,7 @@ export default function FlightLogPage() {
 
   const SortIcon = ({ col }: { col: SortKey }) =>
     sortKey === col ? (
-      sortDir === "asc" ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />
+      sortDir === "asc" ? <ChevronUp className="w-3 h-3 flex-shrink-0" /> : <ChevronDown className="w-3 h-3 flex-shrink-0" />
     ) : null;
 
   return (
@@ -390,7 +397,7 @@ export default function FlightLogPage() {
       </div>
 
       {/* Desktop table view */}
-      <div className="hidden md:block card p-0 overflow-hidden">
+      <div className="hidden md:block card p-0">
         {isLoading ? (
           <div className="p-8 text-center text-slate-500">Loading...</div>
         ) : sorted.length === 0 ? (
@@ -403,39 +410,32 @@ export default function FlightLogPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-800 text-slate-400">
-                  {[
-                    { key: "date" as SortKey, label: "Date" },
-                    { key: "departure_iata" as SortKey, label: "From" },
-                    { key: "arrival_iata" as SortKey, label: "To" },
-                  ].map(({ key, label }) => (
+                  {([
+                    { key: "date", label: "Date", align: "left" },
+                    { key: "departure_iata", label: "From", align: "left" },
+                    { key: "arrival_iata", label: "To", align: "left" },
+                    { key: "flight_number", label: "Flight", align: "left" },
+                    { key: "airline_iata", label: "Airline", align: "left" },
+                    { key: "aircraft_type", label: "Aircraft", align: "left" },
+                    { key: "aircraft_registration", label: "Reg", align: "left" },
+                    { key: "seat_class", label: "Class", align: "left" },
+                    { key: "seat_number", label: "Seat", align: "left" },
+                    { key: "distance_km", label: "Distance", align: "right" },
+                    { key: "duration_minutes", label: "Duration", align: "right" },
+                    { key: "trip_reason", label: "Reason", align: "left" },
+                    { key: "trip", label: "Trip", align: "left" },
+                  ] as { key: SortKey; label: string; align: "left" | "right" }[]).map(({ key, label, align }) => (
                     <th
                       key={key}
-                      className="text-left px-4 py-3 cursor-pointer hover:text-slate-200 select-none"
+                      className={`${align === "right" ? "text-right" : "text-left"} px-4 py-3 cursor-pointer hover:text-slate-200 select-none whitespace-nowrap`}
                       onClick={() => handleSort(key)}
                     >
-                      <span className="flex items-center gap-1">
+                      <span className={`flex items-center gap-1 ${align === "right" ? "justify-end" : ""}`}>
                         {label} <SortIcon col={key} />
                       </span>
                     </th>
                   ))}
-                  <th className="px-4 py-3 sticky right-0 bg-slate-900/95 backdrop-blur-sm"></th>
-                  <th className="text-left px-4 py-3">Flight</th>
-                  <th className="text-left px-4 py-3">Airline</th>
-                  <th className="text-left px-4 py-3">Aircraft</th>
-                  <th className="text-left px-4 py-3">Reg</th>
-                  <th className="text-left px-4 py-3">Class</th>
-                  <th className="text-left px-4 py-3">Seat</th>
-                  <th
-                    className="text-right px-4 py-3 cursor-pointer hover:text-slate-200 select-none"
-                    onClick={() => handleSort("distance_km")}
-                  >
-                    <span className="flex items-center justify-end gap-1">
-                      Distance <SortIcon col="distance_km" />
-                    </span>
-                  </th>
-                  <th className="text-right px-4 py-3">Duration</th>
-                  <th className="text-left px-4 py-3">Reason</th>
-                  <th className="text-left px-4 py-3">Trip</th>
+                  <th className="px-2 py-3 sticky right-0 bg-slate-900/95 backdrop-blur-sm"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/50">
@@ -453,29 +453,13 @@ export default function FlightLogPage() {
                       <div className="font-medium text-white">{f.arrival_iata}</div>
                       <div className="text-xs text-slate-500">{f.arrival_airport?.city}</div>
                     </td>
-                    <td className="px-2 py-3 sticky right-0 bg-slate-900/95 backdrop-blur-sm">
-                      <div className="flex items-center gap-0.5">
-                        <Link
-                          to={`/flights/${f.id}/edit`}
-                          className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-700 rounded transition-colors"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </Link>
-                        <button
-                          onClick={() => setDeleteId(f.id)}
-                          className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-900/20 rounded transition-colors"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
                     <td className="px-4 py-3 text-slate-300 font-mono text-xs">
                       {f.flight_number || "\u2014"}
                     </td>
-                    <td className="px-4 py-3 text-slate-300">
+                    <td className="px-4 py-3 text-slate-300 whitespace-nowrap">
                       {f.airline?.name || f.airline_iata || "\u2014"}
                     </td>
-                    <td className="px-4 py-3 text-slate-400">
+                    <td className="px-4 py-3 text-slate-400 whitespace-nowrap">
                       {f.aircraft_type || "\u2014"}
                     </td>
                     <td className="px-4 py-3 text-slate-400 font-mono text-xs">
@@ -511,6 +495,22 @@ export default function FlightLogPage() {
                     </td>
                     <td className="px-4 py-3 text-slate-400 text-xs">
                       {f.trip || "\u2014"}
+                    </td>
+                    <td className="px-2 py-3 sticky right-0 bg-slate-900/95 backdrop-blur-sm">
+                      <div className="flex items-center gap-0.5">
+                        <Link
+                          to={`/flights/${f.id}/edit`}
+                          className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-700 rounded transition-colors"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </Link>
+                        <button
+                          onClick={() => setDeleteId(f.id)}
+                          className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-900/20 rounded transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

@@ -26,7 +26,6 @@ services:
       DB_USER: ${POSTGRES_USER:-flighttracker}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
       SECRET_KEY: ${SECRET_KEY:-changeme-super-secret-key-32chars}
-      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-changeme}
     depends_on:
       db:

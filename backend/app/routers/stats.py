@@ -10,6 +10,7 @@ from app.models.flight import Flight
 from app.models.airport import Airport
 from app.models.airline import Airline
 from app.schemas.stats import StatsOut
+from app.models.user import User
 from app.utils.auth import get_current_user
 from app.utils.country_codes import get_country_code
 from app.utils.alliances import get_alliance
@@ -25,9 +26,9 @@ def get_stats(
     limit: int = Query(10, ge=1, le=1000),
     sort_by: str = Query("flights", pattern="^(flights|distance)$"),
     db: Session = Depends(get_db),
-    _: str = Depends(get_current_user),
+    user: User = Depends(get_current_user),
 ):
-    query = db.query(Flight)
+    query = db.query(Flight).filter(Flight.user_id == user.id)
     if year:
         query = query.filter(extract("year", Flight.date) == year)
     flights = query.all()
@@ -66,7 +67,7 @@ def get_stats(
     longest_route = f"{longest.departure_iata}\u2192{longest.arrival_iata}" if longest else None
 
     # By year (always return all years regardless of year filter)
-    all_flights = db.query(Flight).all() if year else flights
+    all_flights = db.query(Flight).filter(Flight.user_id == user.id).all() if year else flights
     by_year_map: dict = defaultdict(lambda: {"flights": 0, "distance_km": 0.0, "duration_minutes": 0})
     for f in all_flights:
         y = f.date.year

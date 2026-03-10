@@ -36,6 +36,29 @@ export const login = async (username: string, password: string) => {
   return res.data as { access_token: string; token_type: string };
 };
 
+export const register = async (username: string, password: string) => {
+  const res = await api.post("/auth/register", { username, password });
+  return res.data as { access_token: string; token_type: string };
+};
+
+export const fetchMe = async () => {
+  const res = await api.get("/auth/me");
+  return res.data as { id: number; username: string };
+};
+
+export const updateAccount = async (data: {
+  current_password: string;
+  new_password?: string;
+  new_username?: string;
+}) => {
+  const res = await api.put("/auth/me", data);
+  return res.data as { id: number; username: string };
+};
+
+export const deleteAccount = async () => {
+  await api.delete("/auth/me");
+};
+
 // Flights
 export const fetchFlights = async (year?: number) => {
   const res = await api.get("/flights", { params: year ? { year } : {} });
