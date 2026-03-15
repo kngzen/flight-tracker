@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { MapContainer, TileLayer, CircleMarker, Popup, Polyline, Tooltip as LTooltip, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, CircleMarker, Popup, Polyline, Tooltip as LTooltip, useMap, useMapEvents } from "react-leaflet";
 import { fetchStats } from "../lib/api";
 import { Stats } from "../types";
 import { Sun, Moon, Tag } from "lucide-react";
@@ -70,6 +70,67 @@ function heatColor(t: number): string {
   const g = Math.round(230 + (64 - 230) * t);
   const b = Math.round(253 + (175 - 253) * t);
   return `rgb(${r},${g},${b})`;
+}
+
+function BubbleLayer({
+  airports,
+  maxCount,
+  showLabels,
+  labelColor,
+  darkMode,
+}: {
+  airports: Map<string, { lat: number; lon: number; label: string; count: number }>;
+  maxCount: number;
+  showLabels: boolean;
+  labelColor: string;
+  darkMode: boolean;
+}) {
+  const map = useMap();
+  const [zoom, setZoom] = useState(map.getZoom());
+  useMapEvents({
+    zoomend: () => setZoom(map.getZoom()),
+  });
+
+  // Scale factor: at zoom 2, factor=1. Each zoom level doubles size.
+  const scaleFactor = Math.pow(2, (zoom - 2) / 3);
+
+  return (
+    <>
+      {Array.from(airports.entries()).map(([iata, ap]) => {
+        const minR = 5;
+        const maxR = 30;
+        const t = ap.count / maxCount;
+        const baseR = minR + t * (maxR - minR);
+        const r = Math.max(3, baseR * scaleFactor);
+        const color = heatColor(t);
+        return (
+          <CircleMarker
+            key={iata}
+            center={[ap.lat, ap.lon]}
+            radius={r}
+            pathOptions={{
+              color,
+              fillColor: color,
+              fillOpacity: 0.45 + t * 0.45,
+              weight: 2,
+            }}
+          >
+            {showLabels && (
+              <LTooltip permanent direction="top" offset={[0, -(r + 4)]} className="airport-label">
+                <span style={{ color: labelColor, fontSize: 10, fontWeight: 600, textShadow: darkMode ? "0 1px 3px rgba(0,0,0,0.8)" : "0 1px 3px rgba(255,255,255,0.8)" }}>
+                  {iata}
+                </span>
+              </LTooltip>
+            )}
+            <Popup>
+              <div className="text-sm font-medium">{iata}</div>
+              <div className="text-xs text-gray-500">{ap.count} flights</div>
+            </Popup>
+          </CircleMarker>
+        );
+      })}
+    </>
+  );
 }
 
 function MapCenterUpdater({ lat, lon }: { lat: number; lon: number }) {
@@ -254,41 +315,13 @@ export default function MapPage() {
             )}
 
             {view === "bubbles" && (
-              <>
-                {/* Sized heat-colored bubbles */}
-                {Array.from(airportMap.entries()).map(([iata, ap]) => {
-                  const minR = 5;
-                  const maxR = 30;
-                  const t = ap.count / maxAirportCount; // 0..1
-                  const r = minR + t * (maxR - minR);
-                  const color = heatColor(t);
-                  return (
-                    <CircleMarker
-                      key={iata}
-                      center={[ap.lat, ap.lon]}
-                      radius={r}
-                      pathOptions={{
-                        color,
-                        fillColor: color,
-                        fillOpacity: 0.45 + t * 0.45,
-                        weight: 2,
-                      }}
-                    >
-                      {showLabels && (
-                        <LTooltip permanent direction="top" offset={[0, -(r + 4)]} className="airport-label">
-                          <span style={{ color: labelColor, fontSize: 10, fontWeight: 600, textShadow: darkMode ? "0 1px 3px rgba(0,0,0,0.8)" : "0 1px 3px rgba(255,255,255,0.8)" }}>
-                            {iata}
-                          </span>
-                        </LTooltip>
-                      )}
-                      <Popup>
-                        <div className="text-sm font-medium">{iata}</div>
-                        <div className="text-xs text-gray-500">{ap.count} flights</div>
-                      </Popup>
-                    </CircleMarker>
-                  );
-                })}
-              </>
+              <BubbleLayer
+                airports={airportMap}
+                maxCount={maxAirportCount}
+                showLabels={showLabels}
+                labelColor={labelColor}
+                darkMode={darkMode}
+              />
             )}
           </MapContainer>
         )}

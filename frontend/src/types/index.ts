@@ -132,6 +132,13 @@ export interface TopRegistration {
   distance_km: number;
 }
 
+export interface TopCountry {
+  country: string;
+  country_code: string | null;
+  count: number;
+  distance_km: number;
+}
+
 export interface MapRoute {
   departure_iata: string;
   arrival_iata: string;
@@ -174,5 +181,6 @@ export interface Stats {
   top_aircraft_types: TopAircraftType[];
   top_aircraft_icao: TopAircraftIcao[];
   top_registrations: TopRegistration[];
+  top_countries: TopCountry[];
   map_routes: MapRoute[];
 }

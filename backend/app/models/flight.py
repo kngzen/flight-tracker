@@ -47,5 +47,5 @@ class Flight(Base):
     pnr = Column(String(50), nullable=True)  # Booking reference
     canceled = Column(Boolean, default=False)
 
-    # External IDs for dedup
-    flighty_id = Column(String(100), nullable=True, unique=True, index=True)
+    # External IDs for dedup (unique per user, not globally)
+    flighty_id = Column(String(100), nullable=True, index=True)

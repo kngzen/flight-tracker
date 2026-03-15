@@ -74,6 +74,13 @@ def get_stats(
         by_year_map[y]["flights"] += 1
         by_year_map[y]["distance_km"] += f.distance_km or 0
         by_year_map[y]["duration_minutes"] += f.duration_minutes or 0
+    # Fill in missing years between min and max
+    if by_year_map:
+        min_year = min(by_year_map.keys())
+        max_year = max(by_year_map.keys())
+        for y in range(min_year, max_year + 1):
+            if y not in by_year_map:
+                by_year_map[y]  # triggers defaultdict creation with zeros
     by_year = [{"year": y, **v} for y, v in sorted(by_year_map.items())]
 
     # Sort key for rankings
@@ -123,14 +130,13 @@ def get_stats(
             "distance_km": round(data["distance_km"], 1),
         })
 
-    # Top airports (track both count and distance)
+    # Top airports (count both dep+arr, but distance only from origin)
     airport_data: dict = defaultdict(lambda: {"count": 0, "distance_km": 0.0})
     for f in flights:
         d = f.distance_km or 0
         airport_data[f.departure_iata]["count"] += 1
         airport_data[f.departure_iata]["distance_km"] += d
         airport_data[f.arrival_iata]["count"] += 1
-        airport_data[f.arrival_iata]["distance_km"] += d
     top_airports = []
     for iata, data in sorted(airport_data.items(), key=lambda x: x[1][rank_key], reverse=True)[:limit]:
         a = airport_map.get(iata)
@@ -147,7 +153,12 @@ def get_stats(
 
     # Top airlines (track both count and distance)
     airline_iata_set = {f.airline_iata for f in flights if f.airline_iata}
-    airline_map = {a.iata: a for a in db.query(Airline).filter(Airline.iata.in_(airline_iata_set)).all()}
+    # For duplicate IATA codes (e.g. SQ = Singapore Airlines + Singapore Airlines Cargo),
+    # prefer the one with lower id (typically the passenger airline)
+    airline_map: dict = {}
+    for a in db.query(Airline).filter(Airline.iata.in_(airline_iata_set)).order_by(Airline.id).all():
+        if a.iata not in airline_map:
+            airline_map[a.iata] = a
     airline_data: dict = defaultdict(lambda: {"count": 0, "distance_km": 0.0})
     for f in flights:
         if f.airline_iata:
@@ -198,6 +209,24 @@ def get_stats(
         for k, v in sorted(reg_data.items(), key=lambda x: x[1][rank_key], reverse=True)[:limit]
     ]
 
+    # Top countries (count flights touching each country via departure/arrival airports)
+    country_data: dict = defaultdict(lambda: {"count": 0, "distance_km": 0.0})
+    for f in flights:
+        visited_countries = set()
+        dep_a = airport_map.get(f.departure_iata)
+        arr_a = airport_map.get(f.arrival_iata)
+        if dep_a and dep_a.country:
+            visited_countries.add(dep_a.country)
+        if arr_a and arr_a.country:
+            visited_countries.add(arr_a.country)
+        for c in visited_countries:
+            country_data[c]["count"] += 1
+            country_data[c]["distance_km"] += f.distance_km or 0
+    top_countries = [
+        {"country": k, "country_code": get_country_code(k), "count": v["count"], "distance_km": round(v["distance_km"], 1)}
+        for k, v in sorted(country_data.items(), key=lambda x: x[1][rank_key], reverse=True)[:limit]
+    ]
+
     # Map routes
     map_route_counts: dict = defaultdict(int)
     for f in flights:
@@ -235,5 +264,6 @@ def get_stats(
         top_aircraft_types=top_aircraft_types,
         top_aircraft_icao=top_aircraft_icao,
         top_registrations=top_registrations,
+        top_countries=top_countries,
         map_routes=map_routes,
     )

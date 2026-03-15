@@ -200,7 +200,7 @@ export default function FlightLogPage() {
     return sortDir === "asc" ? cmp : -cmp;
   });
 
-  const years = Array.from(new Set(flights.map((f) => new Date(f.date).getFullYear()))).sort((a, b) => b - a);
+  const years = Array.from(new Set(flights.map((f) => new Date(f.date + "T00:00:00").getFullYear()))).sort((a, b) => b - a);
   const activeFilterCount = filterAirlines.length + filterFrom.length + filterTo.length + filterAircraft.length + filterAircraftIcao.length;
 
   const SortIcon = ({ col }: { col: SortKey }) =>
@@ -385,7 +385,7 @@ export default function FlightLogPage() {
                 </div>
               </div>
               <div className="flex items-center gap-3 text-xs text-slate-400 flex-wrap">
-                <span>{format(new Date(f.date), "d MMM yyyy")}</span>
+                <span>{format(new Date(f.date + "T00:00:00"), "d MMM yyyy")}</span>
                 {f.airline?.name && <span>{f.airline.name}</span>}
                 {f.flight_number && <span className="font-mono">{f.flight_number}</span>}
                 {f.distance_km && <span>{formatDistance(f.distance_km)}</span>}
@@ -407,7 +407,7 @@ export default function FlightLogPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[1200px] text-sm">
               <thead>
                 <tr className="border-b border-slate-800 text-slate-400">
                   {([
@@ -442,7 +442,7 @@ export default function FlightLogPage() {
                 {sorted.map((f) => (
                   <tr key={f.id} className="hover:bg-slate-800/30 transition-colors">
                     <td className="px-4 py-3 text-slate-300 whitespace-nowrap">
-                      <div>{format(new Date(f.date), "d MMM yyyy")}</div>
+                      <div>{format(new Date(f.date + "T00:00:00"), "d MMM yyyy")}</div>
                       {f.departure_time && <div className="text-xs text-slate-500">{f.departure_time}</div>}
                     </td>
                     <td className="px-4 py-3">

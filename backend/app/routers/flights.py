@@ -22,7 +22,7 @@ class DeleteAllConfirm(BaseModel):
 def enrich_flight(flight: Flight, db: Session) -> dict:
     dep = db.query(Airport).filter(Airport.iata == flight.departure_iata).first()
     arr = db.query(Airport).filter(Airport.iata == flight.arrival_iata).first()
-    airline = db.query(Airline).filter(Airline.iata == flight.airline_iata).first() if flight.airline_iata else None
+    airline = db.query(Airline).filter(Airline.iata == flight.airline_iata).order_by(Airline.id).first() if flight.airline_iata else None
 
     data = {c.name: getattr(flight, c.name) for c in flight.__table__.columns}
     data["departure_airport"] = (

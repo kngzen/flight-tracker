@@ -137,7 +137,7 @@ export default function DashboardPage() {
                   </p>
                   <p className="text-sm text-slate-400">
                     {f.airline?.name || f.airline_iata || "—"} ·{" "}
-                    {format(new Date(f.date), "d MMM yyyy")}
+                    {format(new Date(f.date + "T00:00:00"), "d MMM yyyy")}
                   </p>
                 </div>
                 <div className="text-right text-sm text-slate-400">

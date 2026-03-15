@@ -64,6 +64,13 @@ class MapRoute(BaseModel):
     count: int
 
 
+class TopCountry(BaseModel):
+    country: str
+    country_code: Optional[str] = None
+    count: int
+    distance_km: float = 0
+
+
 class AllianceStat(BaseModel):
     alliance: str
     count: int
@@ -96,4 +103,5 @@ class StatsOut(BaseModel):
     top_aircraft_types: list[TopAircraftType]
     top_aircraft_icao: list[TopAircraftIcao]
     top_registrations: list[TopRegistration]
+    top_countries: list[TopCountry]
     map_routes: list[MapRoute]

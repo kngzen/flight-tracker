@@ -413,6 +413,37 @@ export default function StatsPage() {
         )}
       </div>
 
+      {/* Top countries */}
+      {stats.top_countries.length > 0 && (
+        <div className="card">
+          <h2 className="font-semibold text-slate-200 mb-4">Top Countries</h2>
+          <div className="space-y-2">
+            {stats.top_countries.map((c, i) => {
+              const maxVal = isMileageMode ? stats.top_countries[0].distance_km : stats.top_countries[0].count;
+              const curVal = isMileageMode ? c.distance_km : c.count;
+              const pct = maxVal > 0 ? Math.round((curVal / maxVal) * 100) : 0;
+              return (
+                <div key={i} className="flex items-center gap-3 px-2 py-1.5 -mx-2">
+                  <span className="text-xs text-slate-500 w-6">{i + 1}</span>
+                  <CountryFlag code={c.country_code} />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-slate-200 text-sm">{c.country}</span>
+                    </div>
+                    <div className="bg-slate-800 rounded-full h-1.5">
+                      <div className="bg-purple-500 h-1.5 rounded-full" style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                  <span className="text-sm text-slate-400 w-20 text-right">
+                    {isMileageMode ? formatMiles(c.distance_km) : `${c.count}\u00d7`}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Flights per year bar chart */}
       {byYearData.length > 0 && (
         <div className="card">
