@@ -70,6 +70,25 @@
   display: none !important;
 }
 
+/* Force scrollbar visibility on the flight log table */
+.scrollbar-visible {
+  overflow-x: auto;
+}
+.scrollbar-visible::-webkit-scrollbar {
+  height: 8px;
+}
+.scrollbar-visible::-webkit-scrollbar-track {
+  background: #1e293b;
+  border-radius: 4px;
+}
+.scrollbar-visible::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 4px;
+}
+.scrollbar-visible::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
 /* React-Select dark theme */
 .react-select-container .react-select__control {
   background-color: #1e293b;

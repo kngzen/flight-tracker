@@ -209,9 +209,9 @@ export default function FlightLogPage() {
     ) : null;
 
   return (
-    <div className="p-4 md:p-8 space-y-6">
+    <div className="p-4 md:p-8 space-y-6 inline-block min-w-full">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sticky left-0 w-[calc(100vw-2rem)] md:w-[calc(100vw-16rem-4rem)]">
         <div>
           <h1 className="text-2xl font-bold text-white">Flight Log</h1>
           <p className="text-slate-400 mt-1">
@@ -263,7 +263,7 @@ export default function FlightLogPage() {
 
       {/* Filter panel */}
       {showFilters && (
-        <div className="card p-4 space-y-3">
+        <div className="card p-4 space-y-3 sticky left-0 w-[calc(100vw-2rem)] md:w-[calc(100vw-16rem-4rem)]">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-medium text-slate-300">Filters</h3>
             {activeFilterCount > 0 && (
@@ -406,8 +406,8 @@ export default function FlightLogPage() {
             <p>No flights found.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1200px] text-sm">
+          <div>
+            <table className="text-sm min-w-full">
               <thead>
                 <tr className="border-b border-slate-800 text-slate-400">
                   {([
@@ -445,15 +445,15 @@ export default function FlightLogPage() {
                       <div>{format(new Date(f.date + "T00:00:00"), "d MMM yyyy")}</div>
                       {f.departure_time && <div className="text-xs text-slate-500">{f.departure_time}</div>}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 whitespace-nowrap">
                       <div className="font-medium text-white">{f.departure_iata}</div>
                       <div className="text-xs text-slate-500">{f.departure_airport?.city}</div>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 whitespace-nowrap">
                       <div className="font-medium text-white">{f.arrival_iata}</div>
                       <div className="text-xs text-slate-500">{f.arrival_airport?.city}</div>
                     </td>
-                    <td className="px-4 py-3 text-slate-300 font-mono text-xs">
+                    <td className="px-4 py-3 text-slate-300 font-mono text-xs whitespace-nowrap">
                       {f.flight_number || "\u2014"}
                     </td>
                     <td className="px-4 py-3 text-slate-300 whitespace-nowrap">
@@ -462,10 +462,10 @@ export default function FlightLogPage() {
                     <td className="px-4 py-3 text-slate-400 whitespace-nowrap">
                       {f.aircraft_type || "\u2014"}
                     </td>
-                    <td className="px-4 py-3 text-slate-400 font-mono text-xs">
+                    <td className="px-4 py-3 text-slate-400 font-mono text-xs whitespace-nowrap">
                       {f.aircraft_registration || "\u2014"}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 whitespace-nowrap">
                       {f.seat_class ? (
                         <span className={seatClassBadge(f.seat_class)}>
                           {seatClassLabel(f.seat_class)}
@@ -474,7 +474,7 @@ export default function FlightLogPage() {
                         <span className="text-slate-500">{"\u2014"}</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-slate-400 text-xs">
+                    <td className="px-4 py-3 text-slate-400 text-xs whitespace-nowrap">
                       {f.seat_number ? (
                         <span>
                           {f.seat_number}
@@ -490,10 +490,10 @@ export default function FlightLogPage() {
                     <td className="px-4 py-3 text-right text-slate-400 whitespace-nowrap">
                       {formatDuration(f.duration_minutes)}
                     </td>
-                    <td className="px-4 py-3 text-slate-400 text-xs capitalize">
+                    <td className="px-4 py-3 text-slate-400 text-xs capitalize whitespace-nowrap">
                       {f.trip_reason || "\u2014"}
                     </td>
-                    <td className="px-4 py-3 text-slate-400 text-xs">
+                    <td className="px-4 py-3 text-slate-400 text-xs whitespace-nowrap">
                       {f.trip || "\u2014"}
                     </td>
                     <td className="px-2 py-3 sticky right-0 bg-slate-900/95 backdrop-blur-sm">

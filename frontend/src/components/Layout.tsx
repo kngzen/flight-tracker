@@ -138,7 +138,7 @@ export default function Layout() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-auto scrollbar-visible">
           <Outlet />
         </main>
       </div>
