@@ -18,7 +18,6 @@ class FlightBase(BaseModel):
     airline_iata: Optional[str] = None
     flight_number: Optional[str] = None
     aircraft_type: Optional[str] = None
-    aircraft_type_icao: Optional[str] = None
     aircraft_registration: Optional[str] = None
     seat_class: Optional[str] = None
     seat_number: Optional[str] = None
@@ -60,7 +59,6 @@ class FlightUpdate(BaseModel):
     airline_iata: Optional[str] = None
     flight_number: Optional[str] = None
     aircraft_type: Optional[str] = None
-    aircraft_type_icao: Optional[str] = None
     aircraft_registration: Optional[str] = None
     seat_class: Optional[str] = None
     seat_number: Optional[str] = None

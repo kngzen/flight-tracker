@@ -34,7 +34,6 @@ export interface Flight {
   airline_iata: string | null;
   flight_number: string | null;
   aircraft_type: string | null;
-  aircraft_type_icao: string | null;
   aircraft_registration: string | null;
   seat_class: string | null;
   seat_number: string | null;
@@ -67,7 +66,6 @@ export interface FlightCreate {
   airline_iata?: string;
   flight_number?: string;
   aircraft_type?: string;
-  aircraft_type_icao?: string;
   aircraft_registration?: string;
   seat_class?: string;
   seat_number?: string;
@@ -115,13 +113,12 @@ export interface TopAirline {
 
 export interface TopAircraftType {
   aircraft_type: string;
-  aircraft_type_icao: string | null;
   count: number;
   distance_km: number;
 }
 
-export interface TopAircraftIcao {
-  aircraft_type_icao: string;
+export interface TopAircraftFamily {
+  family: string;
   count: number;
   distance_km: number;
 }
@@ -179,7 +176,7 @@ export interface Stats {
   top_airports: TopAirport[];
   top_airlines: TopAirline[];
   top_aircraft_types: TopAircraftType[];
-  top_aircraft_icao: TopAircraftIcao[];
+  top_aircraft_families: TopAircraftFamily[];
   top_registrations: TopRegistration[];
   top_countries: TopCountry[];
   map_routes: MapRoute[];

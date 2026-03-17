@@ -366,11 +366,11 @@ export default function StatsPage() {
         </div>
       )}
 
-      {/* Top aircraft types - side by side */}
+      {/* Top aircraft types and families - side by side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         {stats.top_aircraft_types.length > 0 && (
           <div className="card">
-            <h2 className="font-semibold text-slate-200 mb-4">Most Flown Aircraft (Type Name)</h2>
+            <h2 className="font-semibold text-slate-200 mb-4">Most Flown Aircraft Types</h2>
             <div className="space-y-2">
               {stats.top_aircraft_types.map((a, i) => (
                 <div
@@ -390,19 +390,18 @@ export default function StatsPage() {
           </div>
         )}
 
-        {stats.top_aircraft_icao.length > 0 && (
+        {stats.top_aircraft_families.length > 0 && (
           <div className="card">
-            <h2 className="font-semibold text-slate-200 mb-4">Most Flown Aircraft (ICAO Code)</h2>
+            <h2 className="font-semibold text-slate-200 mb-4">Most Flown Aircraft Families</h2>
             <div className="space-y-2">
-              {stats.top_aircraft_icao.map((a, i) => (
+              {stats.top_aircraft_families.map((a, i) => (
                 <div
                   key={i}
-                  className="flex items-center gap-3 cursor-pointer rounded-lg px-2 py-1.5 -mx-2 hover:bg-slate-800 transition-colors"
-                  onClick={() => goToFlights({ aircraft_icao: a.aircraft_type_icao })}
+                  className="flex items-center gap-3 rounded-lg px-2 py-1.5 -mx-2"
                 >
                   <span className="text-xs text-slate-500 w-6">{i + 1}</span>
                   <Plane className="w-4 h-4 text-slate-500 flex-shrink-0" />
-                  <span className="flex-1 text-slate-200 text-sm">{a.aircraft_type_icao}</span>
+                  <span className="flex-1 text-slate-200 text-sm">{a.family}</span>
                   <span className="text-sm text-slate-400">
                     {isMileageMode ? formatMiles(a.distance_km) : `${a.count} flights`}
                   </span>

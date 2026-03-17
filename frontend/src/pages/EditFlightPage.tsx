@@ -62,7 +62,6 @@ export default function EditFlightPage() {
     airline_iata: flight.airline_iata || undefined,
     flight_number: flight.flight_number || undefined,
     aircraft_type: flight.aircraft_type || undefined,
-    aircraft_type_icao: flight.aircraft_type_icao || undefined,
     aircraft_registration: flight.aircraft_registration || undefined,
     seat_class: flight.seat_class || undefined,
     seat_number: flight.seat_number || undefined,

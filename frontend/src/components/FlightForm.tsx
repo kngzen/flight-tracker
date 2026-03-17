@@ -71,7 +71,7 @@ function AircraftTypeInput({ value, onChange }: { value?: string; onChange: (v: 
 
   const fetchSuggestions = (q: string) => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    if (q.length < 2) {
+    if (q.length < 1) {
       setSuggestions([]);
       return;
     }

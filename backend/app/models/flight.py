@@ -27,8 +27,7 @@ class Flight(Base):
     # Flight details
     airline_iata = Column(String(10), nullable=True)
     flight_number = Column(String(20), nullable=True)
-    aircraft_type = Column(String(50), nullable=True)  # Full name e.g. "Airbus A320"
-    aircraft_type_icao = Column(String(10), nullable=True)  # ICAO code e.g. "A320"
+    aircraft_type = Column(String(50), nullable=True)  # Canonical name e.g. "Airbus A320", "Boeing 737"
     aircraft_registration = Column(String(50), nullable=True)
 
     # Seat

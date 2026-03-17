@@ -47,7 +47,6 @@ export default function FlightLogPage() {
   const [filterFrom, setFilterFrom] = useState<SelectOption[]>([]);
   const [filterTo, setFilterTo] = useState<SelectOption[]>([]);
   const [filterAircraft, setFilterAircraft] = useState<SelectOption[]>([]);
-  const [filterAircraftIcao, setFilterAircraftIcao] = useState<SelectOption[]>([]);
 
   const { data: flights = [], isLoading } = useQuery<Flight[]>({
     queryKey: ["flights", year],
@@ -81,11 +80,6 @@ export default function FlightLogPage() {
     }
     if (aircraft) {
       setFilterAircraft(aircraft.split(",").map((v) => ({ value: v, label: v })));
-      hasFilter = true;
-    }
-    const aircraftIcao = searchParams.get("aircraft_icao");
-    if (aircraftIcao) {
-      setFilterAircraftIcao(aircraftIcao.split(",").map((v) => ({ value: v, label: v })));
       hasFilter = true;
     }
     if (hasFilter) {
@@ -154,12 +148,6 @@ export default function FlightLogPage() {
     return Array.from(set).sort().map((v) => ({ value: v, label: v }));
   }, [flights]);
 
-  const aircraftIcaoOptions = useMemo(() => {
-    const set = new Set<string>();
-    flights.forEach((f) => { if (f.aircraft_type_icao) set.add(f.aircraft_type_icao); });
-    return Array.from(set).sort().map((v) => ({ value: v, label: v }));
-  }, [flights]);
-
   // Apply filters
   const filtered = useMemo(() => {
     let result = flights;
@@ -179,12 +167,8 @@ export default function FlightLogPage() {
       const vals = new Set(filterAircraft.map((o) => o.value));
       result = result.filter((f) => f.aircraft_type && vals.has(f.aircraft_type));
     }
-    if (filterAircraftIcao.length > 0) {
-      const vals = new Set(filterAircraftIcao.map((o) => o.value));
-      result = result.filter((f) => f.aircraft_type_icao && vals.has(f.aircraft_type_icao));
-    }
     return result;
-  }, [flights, filterAirlines, filterFrom, filterTo, filterAircraft, filterAircraftIcao]);
+  }, [flights, filterAirlines, filterFrom, filterTo, filterAircraft]);
 
   const sorted = [...filtered].sort((a, b) => {
     let aVal: string | number | null;
@@ -201,7 +185,7 @@ export default function FlightLogPage() {
   });
 
   const years = Array.from(new Set(flights.map((f) => new Date(f.date + "T00:00:00").getFullYear()))).sort((a, b) => b - a);
-  const activeFilterCount = filterAirlines.length + filterFrom.length + filterTo.length + filterAircraft.length + filterAircraftIcao.length;
+  const activeFilterCount = filterAirlines.length + filterFrom.length + filterTo.length + filterAircraft.length;
 
   const SortIcon = ({ col }: { col: SortKey }) =>
     sortKey === col ? (
@@ -269,14 +253,14 @@ export default function FlightLogPage() {
             {activeFilterCount > 0 && (
               <button
                 type="button"
-                onClick={() => { setFilterAirlines([]); setFilterFrom([]); setFilterTo([]); setFilterAircraft([]); setFilterAircraftIcao([]); }}
+                onClick={() => { setFilterAirlines([]); setFilterFrom([]); setFilterTo([]); setFilterAircraft([]); }}
                 className="text-xs text-slate-400 hover:text-slate-200 flex items-center gap-1"
               >
                 <X className="w-3 h-3" /> Clear all
               </button>
             )}
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
             <div>
               <label className="label text-xs">Airline</label>
               <Select
@@ -321,18 +305,6 @@ export default function FlightLogPage() {
                 value={filterAircraft}
                 onChange={(v) => setFilterAircraft([...v])}
                 placeholder="All types"
-                styles={selectStyles}
-                menuPortalTarget={document.body}
-              />
-            </div>
-            <div>
-              <label className="label text-xs">Aircraft ICAO</label>
-              <Select
-                isMulti
-                options={aircraftIcaoOptions}
-                value={filterAircraftIcao}
-                onChange={(v) => setFilterAircraftIcao([...v])}
-                placeholder="All ICAO"
                 styles={selectStyles}
                 menuPortalTarget={document.body}
               />

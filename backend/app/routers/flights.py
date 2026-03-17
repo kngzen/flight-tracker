@@ -11,6 +11,7 @@ from app.models.user import User
 from app.schemas.flight import FlightCreate, FlightOut, FlightUpdate
 from app.utils.auth import get_current_user
 from app.utils.geo import haversine_km
+from app.utils.aircraft import normalize_aircraft_type, suggest_aircraft_types as _suggest_aircraft
 
 router = APIRouter(prefix="/api/flights", tags=["flights"])
 
@@ -84,7 +85,9 @@ def create_flight(
     user: User = Depends(get_current_user),
 ):
     distance = compute_distance(payload.departure_iata, payload.arrival_iata, db)
-    flight = Flight(**payload.model_dump(), user_id=user.id, distance_km=distance)
+    data = payload.model_dump()
+    data["aircraft_type"] = normalize_aircraft_type(data.get("aircraft_type"))
+    flight = Flight(**data, user_id=user.id, distance_km=distance)
     db.add(flight)
     db.commit()
     db.refresh(flight)
@@ -111,20 +114,10 @@ def estimate_duration(
 @router.get("/aircraft-types/suggest")
 def suggest_aircraft_types(
     q: str = Query("", min_length=1),
-    db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """Return distinct aircraft types matching the query."""
-    types = (
-        db.query(Flight.aircraft_type)
-        .filter(Flight.user_id == user.id)
-        .filter(Flight.aircraft_type.isnot(None))
-        .filter(Flight.aircraft_type.ilike(f"%{q}%"))
-        .distinct()
-        .limit(20)
-        .all()
-    )
-    return [t[0] for t in types if t[0]]
+    """Return canonical aircraft types matching the query."""
+    return _suggest_aircraft(q)
 
 
 @router.get("/{flight_id}", response_model=FlightOut)
@@ -151,6 +144,8 @@ def update_flight(
         raise HTTPException(status_code=404, detail="Flight not found")
 
     update_data = payload.model_dump(exclude_unset=True)
+    if "aircraft_type" in update_data:
+        update_data["aircraft_type"] = normalize_aircraft_type(update_data["aircraft_type"])
     for key, value in update_data.items():
         setattr(flight, key, value)
 

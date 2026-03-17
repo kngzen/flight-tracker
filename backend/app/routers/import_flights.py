@@ -15,7 +15,7 @@ from app.models.flight import Flight
 from app.models.user import User
 from app.utils.auth import get_current_user
 from app.utils.geo import haversine_km
-from app.utils.aircraft import get_aircraft_icao
+from app.utils.aircraft import normalize_aircraft_type
 
 router = APIRouter(prefix="/api/import", tags=["import"])
 
@@ -235,8 +235,7 @@ def import_flighty_row(row: dict, db: Session, get_airport, get_airline_iata_by_
         duration = round(distance / 850 * 60 + 30)
 
     # Aircraft
-    aircraft_type = n.get("aircraft type name") or None
-    aircraft_type_icao = get_aircraft_icao(aircraft_type)
+    aircraft_type = normalize_aircraft_type(n.get("aircraft type name"))
     aircraft_reg = n.get("tail number") or None
 
     # Seat
@@ -280,7 +279,6 @@ def import_flighty_row(row: dict, db: Session, get_airport, get_airline_iata_by_
         airline_iata=airline_iata or None,
         flight_number=flight_number or None,
         aircraft_type=aircraft_type,
-        aircraft_type_icao=aircraft_type_icao,
         aircraft_registration=aircraft_reg,
         seat_class=seat_class or None,
         seat_number=seat_number,
@@ -368,8 +366,7 @@ def import_openflights_row(row: dict, db: Session, get_airport, get_airline_iata
     trip_reason = REASON_MAP.get(raw_reason.strip(), raw_reason.lower() or None)
 
     # Aircraft
-    aircraft_type = n.get("plane") or n.get("aircraft") or None
-    aircraft_type_icao = get_aircraft_icao(aircraft_type)
+    aircraft_type = normalize_aircraft_type(n.get("plane") or n.get("aircraft"))
 
     flight = Flight(
         departure_iata=dep_iata,
@@ -379,7 +376,6 @@ def import_openflights_row(row: dict, db: Session, get_airport, get_airline_iata
         airline_iata=airline_iata or None,
         flight_number=n.get("flight_number") or n.get("flight") or None,
         aircraft_type=aircraft_type,
-        aircraft_type_icao=aircraft_type_icao,
         aircraft_registration=n.get("registration") or n.get("reg") or None,
         seat_class=seat_class or None,
         seat_number=n.get("seat") or None,

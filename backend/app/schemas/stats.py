@@ -37,13 +37,12 @@ class TopAirline(BaseModel):
 
 class TopAircraftType(BaseModel):
     aircraft_type: str
-    aircraft_type_icao: Optional[str] = None
     count: int
     distance_km: float = 0
 
 
-class TopAircraftIcao(BaseModel):
-    aircraft_type_icao: str
+class TopAircraftFamily(BaseModel):
+    family: str
     count: int
     distance_km: float = 0
 
@@ -101,7 +100,7 @@ class StatsOut(BaseModel):
     top_airports: list[TopAirport]
     top_airlines: list[TopAirline]
     top_aircraft_types: list[TopAircraftType]
-    top_aircraft_icao: list[TopAircraftIcao]
+    top_aircraft_families: list[TopAircraftFamily]
     top_registrations: list[TopRegistration]
     top_countries: list[TopCountry]
     map_routes: list[MapRoute]
